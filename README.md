@@ -1,32 +1,33 @@
 # VECTOR — PWA de navigation GPS
 
-PWA statique en français, conçue pour un grand écran tactile et le navigateur Chromium embarqué. Interface sombre, carte vectorielle MapLibre, extrusions 3D OSM, position GPS, calcul de route routière, suivi de progression, consignes vocales, recherche d’adresse et mode installable.
+PWA pour grand écran tactile et navigateur Chromium embarqué. L’interface reste sombre, mais la carte vectorielle par défaut utilise le style clair Bright pour rendre les routes et les intersections lisibles. Le fond satellite est disponible à la demande.
 
 ## Déploiement Vercel
 
 1. Importer `kgjames26/Gpstesla` dans Vercel.
-2. Garder la configuration détectée depuis `vercel.json` : commande `npm run build`, sortie `dist`.
-3. Déployer. Chaque push sur `main` déclenchera le déploiement si l’intégration Git Vercel est activée.
-4. Ouvrir l’URL en HTTPS dans le navigateur Tesla et autoriser la localisation.
+2. Utiliser la commande `npm run build` et le dossier de sortie `dist` définis dans `vercel.json`.
+3. Si l’intégration Git Vercel est reliée à ce dépôt, chaque push sur `main` déclenche un nouveau déploiement.
+4. Ouvrir le site en HTTPS dans le navigateur Tesla et autoriser la localisation.
 
-Le projet ne contient ni secret, ni clé d’API à configurer.
+## Navigation
 
-## Utilisation
+- `3D` active la caméra inclinée en poursuite ; `NORD` rétablit la vue de dessus.
+- La caméra suit le cap GPS avec transition adoucie. Elle recule au-dessus de 70 km/h et zoome à basse vitesse ou à l’approche d’une manœuvre lente.
+- `SAT` affiche l’imagerie World Imagery ; `MAP` revient au fond vectoriel clair.
+- Le tracé combine un contour contrasté, un ruban turquoise et des chevrons directionnels.
+- OSRM calcule en profil automobile à partir du réseau OpenStreetMap. Les sens uniques et restrictions présents dans les données sont pris en compte par le profil voiture ; l’application vérifie aussi les drapeaux `entry`/`out` des intersections et bloque un tracé si la sortie sélectionnée est déclarée restreinte. Une erreur ou une donnée OSM manquante reste possible.
+- L’état de charge est saisi manuellement et mémorisé dans le navigateur. La synthèse vocale dépend des capacités du navigateur.
 
-- Le bouton de recherche permet de trouver une destination, puis de calculer un itinéraire.
-- Le guidage GPS suit la progression, actualise distance/ETA et annonce la prochaine manœuvre lorsque le navigateur prend en charge la synthèse vocale.
-- Les boutons `3D` et `NORD` changent la perspective ; le bouton de recentrage reprend la position GPS.
-- L’état de charge est une estimation saisie manuellement et mémorisée dans le navigateur.
-- La géolocalisation haute précision nécessite HTTPS et une autorisation du navigateur.
+## Données, attribution et limites
 
-## Services et limites
-
-- Carte et données cartographiques : OpenFreeMap / OpenStreetMap. La carte, ses tuiles et ses données de style sont chargées en ligne.
-- Recherche d’adresse : Nominatim public.
-- Routage : OSRM public avec profil voiture. Le profil ne connaît pas la motorisation Tesla, le trafic en direct, la charge batterie, les bornes réellement disponibles ni les préférences de recharge. L’itinéraire doit être vérifié avant de conduire.
-- Les limites de vitesse, l’assistance de voie exacte, le capteur de force G, les données télématiques de la voiture et les POI de recharge enrichis ne sont pas fournis par ces API et ne sont pas simulés.
-- La mémoire hors ligne concerne seulement l’interface. Les tuiles et les services de recherche/routage exigent une connexion. Les services publics sont soumis à leurs conditions, quotas et disponibilités ; pour une utilisation soutenue, configurer des fournisseurs dédiés.
-- Le navigateur Tesla peut imposer ses propres restrictions au GPS, à l’audio, à l’installation PWA, au rendu WebGL et aux permissions en arrière-plan. Ces fonctions dépendent du véhicule et de la version logicielle.
+- Fond vectoriel et empreintes de bâtiments : OpenFreeMap / OpenStreetMap.
+- Imagerie satellite : Esri World Imagery, créditant Esri, Vantor, Earthstar Geographics et GIS User Community. La disponibilité et la résolution varient selon le lieu.
+- Les empreintes OSM sont extrudées au-dessus du fond. Les toits et façades restent stylisés : cette version ne projette pas les pixels satellite sur les surfaces 3D et n’ajoute pas de shader SSAO.
+- Le véhicule visible en poursuite est une illustration SVG en perspective, pas un modèle 3D glTF.
+- Le ruban lumineux est un motif vectoriel posé sur l’itinéraire, pas une projection AR réelle. L’imagerie satellite fournit la texture routière visible, selon la résolution locale.
+- OSRM public n’apporte ni trafic temps réel, ni profil Tesla, ni état de batterie, ni planification de recharge. Les limites de vitesse et les données de voies fiables ne sont pas intégrées.
+- Seule l’interface est mise en cache hors ligne ; cartes, géocodage et routage nécessitent une connexion. Les services publics peuvent appliquer leurs propres quotas et conditions.
+- L’accès GPS, l’audio, WebGL et l’installation PWA dépendent des permissions et capacités du navigateur Tesla.
 
 ## Structure
 
@@ -39,7 +40,7 @@ public/
 src/
   app.js
   styles.css
-vercel.json
-package.json
 scripts/build.mjs
+package.json
+vercel.json
 ```
