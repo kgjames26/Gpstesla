@@ -54,9 +54,12 @@
     state.map.on('error',e=>{if(e?.error?.status>=500)console.warn('Map tile service unavailable',e.error);});
   }
   function addSatelliteLayer(){
-    const map=state.map;
+    const map=state.map, layers=map.getStyle().layers||[];
     map.addSource('satellite-imagery',{type:'raster',tiles:[satelliteUrl],tileSize:256,maxzoom:19,attribution:'Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community'});
-    map.addLayer({id:'satellite-base',type:'raster',source:'satellite-imagery',paint:{'raster-fade-duration':0,'raster-opacity':1,'raster-resampling':'linear'}},map.getStyle().layers[0]?.id);
+    const backgroundIndex=layers.findIndex(layer=>layer.type==='background');
+    const firstMapLayer=backgroundIndex>=0?layers[backgroundIndex+1]?.id:undefined;
+    const layer={id:'satellite-base',type:'raster',source:'satellite-imagery',paint:{'raster-fade-duration':0,'raster-opacity':1,'raster-resampling':'linear'}};
+    if(firstMapLayer)map.addLayer(layer,firstMapLayer);else map.addLayer(layer);
   }
   function addRouteChevronPattern(){
     const canvas=document.createElement('canvas');canvas.width=64;canvas.height=32;
@@ -70,11 +73,15 @@
     const road=map.getStyle().layers.find(layer=>layer['source-layer']==='transportation');
     if(!road)return;
     const before=map.getStyle().layers.find(layer=>layer.type==='symbol'&&layer.layout?.['text-field'])?.id;
-    const classes=['motorway','trunk','primary','secondary','tertiary','minor','service','street','track','path','pedestrian'];
+    const classes=['motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link','minor','unclassified','residential','living_street','service','street','track','path','pedestrian','cycleway','footway'];
     const filter=['in',['get','class'],['literal',classes]];
-    const width=['interpolate',['linear'],['zoom'],8,.9,11,1.5,14,2.6,17,4.8,20,7];
-    map.addLayer({id:'road-contrast-casing',source:road.source,'source-layer':'transportation',type:'line',filter,layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#16232d','line-width':['+',width,2.2],'line-opacity':.96}},before);
-    map.addLayer({id:'road-contrast-core',source:road.source,'source-layer':'transportation',type:'line',filter,layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['match',['get','class'],['motorway','trunk'],'#ffe19a',['primary','secondary'],'#e9f2f5',['tertiary','minor'],'#cfe0ea',['service','street'],'#bdcfda',['track','path','pedestrian'],'#b9d0c6','#d5e4ec'],'line-width':width,'line-opacity':1}},before);
+    const width=['interpolate',['linear'],['zoom'],8,1.5,11,2.1,14,3.5,17,6.2,20,9];
+    const nightColors=[['motorway','motorway_link','trunk','trunk_link'],'#f8fafb',['primary','primary_link','secondary','secondary_link'],'#e9eef1',['tertiary','tertiary_link','minor','unclassified'],'#d9e1e5',['residential','living_street','service','street'],'#cbd5da',['track','path','pedestrian','cycleway','footway'],'#bac6cc'];
+    const dayColors=[['motorway','motorway_link','trunk','trunk_link'],'#fff1c9',['primary','primary_link','secondary','secondary_link'],'#edf5f7',['tertiary','tertiary_link','minor','unclassified'],'#d8e6ec',['residential','living_street','service','street'],'#c5d5de',['track','path','pedestrian','cycleway','footway'],'#c0d5cc'];
+    const colors=state.effectiveTheme==='night'?nightColors:dayColors;
+    const colorExpression=['match',['get','class'],...colors,'#d4dfe4'];
+    map.addLayer({id:'road-contrast-casing',source:road.source,'source-layer':'transportation',type:'line',filter,layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':state.effectiveTheme==='night'?'#091116':'#26343a','line-width':['+',width,2.8],'line-opacity':.98}},before);
+    map.addLayer({id:'road-contrast-core',source:road.source,'source-layer':'transportation',type:'line',filter,layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':colorExpression,'line-width':width,'line-opacity':1}},before);
   }
   function addBuildings(){
     const map=state.map, style=map.getStyle();

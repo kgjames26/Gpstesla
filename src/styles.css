@@ -3,7 +3,7 @@
 
 /* A compact rear-view vehicle sprite anchors the third-person composition without a second WebGL scene. */
 .chase-vehicle{display:none;position:absolute;z-index:2;left:50%;top:67%;width:clamp(92px,10vw,146px);height:auto;transform:translate(-50%,-50%);pointer-events:none;filter:drop-shadow(0 9px 18px rgba(0,0,0,.75))}.chase-vehicle svg{display:block;width:100%;height:auto;overflow:visible}.app-shell.nav-guiding.camera-3d .chase-vehicle{display:block}.app-shell.nav-guiding:not(.camera-3d) .chase-vehicle{display:none}
-@media(max-width:680px){.chase-vehicle{top:62%;width:96px}}
+@media(max-width:680px){.chase-vehicle{top:67%;width:96px;max-height:18vh}}
 
 /* Appearance settings: day/night follows the user-selected mode; auto tracks the system theme. */
 .top-actions{display:flex;align-items:center;gap:8px}.top-actions .icon-button{display:grid;place-items:center}.icon-button svg{width:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
