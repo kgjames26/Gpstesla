@@ -1,9 +1,9 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const state = { map:null, location:null, destination:null, route:null, steps:[], stepIndex:0, watchId:null, navigating:false, heading:0, lastSpoken:-1, lastAnnouncedStep:-1, lastVoiceBucket:500, markers:[], routeCoords:[], lastRouteProgress:0, distanceToManeuver:Infinity, mapMode:'satellite', cameraMode:'3d', nativeLayers:[], carMarker:null, toastTimer:null, searchTimer:null };
+  const state = { map:null, location:null, destination:null, route:null, steps:[], stepIndex:0, watchId:null, navigating:false, heading:0, lastSpoken:-1, lastAnnouncedStep:-1, lastVoiceBucket:500, markers:[], routeCoords:[], lastRouteProgress:0, distanceToManeuver:Infinity, mapMode:'map', cameraMode:'3d', nativeLayers:[], carMarker:null, toastTimer:null, searchTimer:null };
   const defaultCenter = [4.533, 50.337];
-  const styleUrl = 'https://tiles.openfreemap.org/styles/dark';
+  const styleUrl = 'https://tiles.openfreemap.org/styles/bright';
   const satelliteUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
   function toast(message) { const el=$('toast'); el.textContent=message; el.classList.add('show'); clearTimeout(state.toastTimer); state.toastTimer=setTimeout(()=>el.classList.remove('show'),2600); }
@@ -21,9 +21,11 @@
       addBuildings();
       addRouteChevronPattern();
       state.map.addSource('route',{type:'geojson',lineMetrics:true,data:{type:'FeatureCollection',features:[]}});
+      state.map.addLayer({id:'route-casing',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#073c38','line-width':['interpolate',['linear'],['zoom'],10,9,16,18,19,23],'line-opacity':.9}});
       state.map.addLayer({id:'route-glow',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#50e4bd','line-width':15,'line-blur':8,'line-opacity':.42}});
+      state.map.addLayer({id:'route-core',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#12ddb2','line-width':['interpolate',['linear'],['zoom'],10,3,16,6,19,8],'line-opacity':1}});
       state.map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-pattern':'route-chevron','line-width':['interpolate',['linear'],['zoom'],10,8,16,13,19,17],'line-opacity':.98}});
-      setMapMode('satellite');
+      setMapMode('map');
       state.map.on('rotate',drawLocation);
       if(state.location)drawLocation();
     });
@@ -47,7 +49,7 @@
     if(!building)return;
     const source=building.source, sourceLayer=building['source-layer'];
     const before=style.layers.find(l=>l.type==='symbol'&&l.layout?.['text-field'])?.id;
-    map.addLayer({id:'buildings-3d',source,'source-layer':sourceLayer,type:'fill-extrusion',minzoom:14,paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],10],10,'#667373',60,'#8c9993'],'fill-extrusion-height':['coalesce',['get','render_height'],['*',['coalesce',['get','building:levels'],3],3.2]],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.86,'fill-extrusion-vertical-gradient':true}},before);
+    map.addLayer({id:'buildings-3d',source,'source-layer':sourceLayer,type:'fill-extrusion',minzoom:14,paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],10],10,'#a8b8b3',60,'#d1ddd7'],'fill-extrusion-height':['coalesce',['get','render_height'],['*',['coalesce',['get','building:levels'],3],3.2]],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.9,'fill-extrusion-vertical-gradient':true}},before);
   }
   function setMapMode(mode){
     if(!state.map)return;
@@ -111,6 +113,12 @@
     const before=style.layers.find(l=>l.type==='symbol'&&l.layout?.['text-field'])?.id;
     map.addLayer({id:'buildings-3d',source,'source-layer':sourceLayer,type:'fill-extrusion',minzoom:14,paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],10],10,'#202f31',60,'#435657'],'fill-extrusion-height':['coalesce',['get','render_height'],['*',['coalesce',['get','building:levels'],3],3.2]],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.78,'fill-extrusion-vertical-gradient':true}},before);
   }
+  function routeRespectsOneWay(route){
+    return route.legs.every(leg=>leg.steps.every(step=>(step.intersections||[]).every(intersection=>{
+      if(!Number.isInteger(intersection.out)||!Array.isArray(intersection.entry))return true;
+      return intersection.entry[intersection.out]!==false;
+    })));
+  }
   function openSearch(){ $('search-overlay').classList.add('open');$('search-overlay').setAttribute('aria-hidden','false');setTimeout(()=>$('destination-input').focus(),60); }
   function closeSearch(){ $('search-overlay').classList.remove('open');$('search-overlay').setAttribute('aria-hidden','true');$('suggestions').innerHTML=''; }
   function geocode(query){ return fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&addressdetails=1&q=${encodeURIComponent(query)}`,{headers:{'Accept-Language':'fr-BE,fr;q=0.9'}}).then(r=>{if(!r.ok)throw Error('Recherche indisponible');return r.json();}); }
@@ -126,18 +134,19 @@
     try{
       const url=`https://router.project-osrm.org/route/v1/driving/${start.join(',')};${end.join(',')}?overview=full&geometries=geojson&steps=true&alternatives=true`;
       const response=await fetch(url);if(!response.ok)throw Error('Route indisponible');const data=await response.json();if(data.code!=='Ok'||!data.routes?.length)throw Error('Aucun itinéraire trouvé');
+      if(!routeRespectsOneWay(data.routes[0]))throw new Error('ROUTE_RESTRICTED');
       state.route=data.routes[0];state.routeCoords=state.route.geometry.coordinates;state.steps=state.route.legs.flatMap(leg=>leg.steps).filter(step=>step.distance>0);state.stepIndex=0;state.lastSpoken=-1;state.lastAnnouncedStep=-1;state.lastVoiceBucket=500;
       state.map.getSource('route').setData({type:'Feature',geometry:state.route.geometry,properties:{}});
       state.markers.forEach(m=>m.remove());state.markers=[];
       for(const [coord,cls] of [[start,'start'],[end,'']]){const el=document.createElement('div');el.className=`route-marker ${cls}`;state.markers.push(new maplibregl.Marker({element:el}).setLngLat(coord).addTo(state.map));}
       const bounds=state.routeCoords.reduce((b,p)=>b.extend(p),new maplibregl.LngLatBounds(state.routeCoords[0],state.routeCoords[0]));state.map.fitBounds(bounds,{padding:{top:185,bottom:190,left:370,right:360},duration:850,maxZoom:17});
       renderRouteCard();closeSearch();toast('Itinéraire prêt. Les consignes sont indicatives.');
-    }catch(e){toast(e.message==='Failed to fetch'?'Service de calcul indisponible.':'Impossible de calculer cet itinéraire.');}
+    }catch(e){toast(e.message==='Failed to fetch'?'Service de calcul indisponible.':e.message==='ROUTE_RESTRICTED'?'Trajet refusé : une sortie semble interdite.':'Impossible de calculer cet itinéraire.');}
     finally{$('calculate-route').innerHTML='CALCULER L’ITINÉRAIRE <span>→</span>';}
   }
   function renderRouteCard(){
     $('route-panel').classList.add('visible');$('route-title').textContent=state.destination.name.split(',').slice(0,2).join(',');$('route-distance').textContent=`${(state.route.distance/1000).toFixed(1).replace('.',',')} km`;$('route-time').textContent=formatDuration(state.route.duration);
-    $('route-eta').textContent=new Intl.DateTimeFormat('fr-BE',{hour:'2-digit',minute:'2-digit'}).format(new Date(Date.now()+state.route.duration*1000));$('route-status').textContent=`${state.route.legs[0].steps.length} segments · estimation routière`;$('start-nav').disabled=false;
+    $('route-eta').textContent=new Intl.DateTimeFormat('fr-BE',{hour:'2-digit',minute:'2-digit'}).format(new Date(Date.now()+state.route.duration*1000));$('route-status').textContent=`${state.route.legs[0].steps.length} segments · sens uniques OSM`;$('start-nav').disabled=false;
     setManeuver(state.steps[0],0);
   }
   function maneuverDescription(step){const type=step?.maneuver?.type, mod=step?.maneuver?.modifier;const text={depart:'Continuez',arrive:'Vous êtes arrivé',turn:mod==='left'?'Tournez à gauche':mod==='right'?'Tournez à droite':`Tournez ${mod||''}`,fork:mod==='left'?'Prenez la branche gauche':'Prenez la branche droite',roundabout:'Au rond-point, prenez la sortie',merge:'Rejoignez la voie','new name':'Continuez sur'};return text[type]||'Continuez';}
