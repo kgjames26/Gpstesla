@@ -15,6 +15,27 @@
   <main class="app-shell">
     <div id="map" aria-label="Carte de navigation"></div>
     <div class="map-vignette"></div>
+    <div id="chase-vehicle" class="chase-vehicle" aria-hidden="true">
+      <svg viewBox="0 0 240 164">
+        <defs>
+          <linearGradient id="bodyPaint" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#e8f5f1"/><stop offset=".45" stop-color="#809c98"/><stop offset="1" stop-color="#263b3a"/></linearGradient>
+          <linearGradient id="rearGlass" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#91bcc1"/><stop offset="1" stop-color="#263c40"/></linearGradient>
+          <linearGradient id="rearBumper" x1="0" x2="1"><stop stop-color="#304644"/><stop offset=".5" stop-color="#9aafaa"/><stop offset="1" stop-color="#304644"/></linearGradient>
+          <filter id="lampGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <ellipse cx="120" cy="146" rx="90" ry="12" fill="#04110f" opacity=".7"/>
+        <path d="M48 61 72 31q8-10 21-12h54q13 2 21 12l24 30 15 56-10 18H43l-10-18z" fill="url(#bodyPaint)" stroke="#d9fff4" stroke-width="2"/>
+        <path d="m75 39 14-12q5-4 12-4h38q7 0 12 4l14 12 13 25H62z" fill="url(#rearGlass)" stroke="#c3eee3" stroke-width="1.5"/>
+        <path d="M60 68h120l8 41H52z" fill="#536e6d" opacity=".76"/>
+        <path d="M67 78h27v15H67zm79 0h27v15h-27z" fill="#1d2e30" opacity=".75"/>
+        <path d="M41 105h31l-5 12H38zm127 0h31l3 12h-29z" fill="#ff7773" filter="url(#lampGlow)"/>
+        <path d="M79 106h82v7H79z" fill="#e9f5ef" opacity=".85"/>
+        <path d="m33 118 22 2 6 14-17 2-11-7zm174 0-22 2-6 14 17 2 11-7z" fill="#101a1b" stroke="#93aaa4"/>
+        <path d="M54 128h132l-8 17H62z" fill="url(#rearBumper)" stroke="#d6e8e2" stroke-width="1.5"/>
+        <path d="M90 134h60" stroke="#eaf6ef" stroke-opacity=".55" stroke-width="2"/>
+        <path d="M78 149h84" stroke="#50e4bd" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+      </svg>
+    </div>
 
     <header class="topbar glass">
       <div class="brand"><div class="brand-mark">V</div><div><strong>VECTOR</strong><span>NAVIGATION SYSTEM</span></div></div>
