@@ -27,6 +27,7 @@ module.exports = async function handler(req, res) {
   const query = '[out:json][timeout:8];(' + cameraStatements +
     'nwr["hazard"](' + south + "," + west + "," + north + "," + east + ');' +
     'way["highway"="construction"](' + south + "," + west + "," + north + "," + east + ');' +
+    'nwr["amenity"="charging_station"](' + south + "," + west + "," + north + "," + east + ');' +
     ');->.alerts;way(around.alerts:60)["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service|road)$"];out geom tags;.alerts out center tags;';
 
   const servers = [

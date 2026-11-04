@@ -187,6 +187,21 @@
     return { roadClass: best.tags && best.tags.highway || "", speedLimit: parseSpeed(best.tags && best.tags.maxspeed) };
   }
 
+  function parsePowerKw(tags) {
+    const keys = ["charging_station:output", "socket:tesla_supercharger:output", "socket:ccs:output", "socket:type2:output", "socket:chademo:output", "max_power"];
+    for (const key of keys) {
+      const value = tags && tags[key];
+      if (!value) continue;
+      const match = String(value).match(/(\d+(?:[.,]\d+)?)/);
+      if (!match) continue;
+      let amount = Number(match[1].replace(",", "."));
+      if (/\bw\b/i.test(String(value)) && !/\bkw\b/i.test(String(value))) amount /= 1000;
+      if (amount > 1000) amount /= 1000;
+      if (Number.isFinite(amount) && amount > 0) return Math.round(amount);
+    }
+    return null;
+  }
+
   function classifyMode(country) {
     return rules[country] || { mode: "zones", label: country === "ZZ" ? "pays non déterminé" : country };
   }
@@ -224,7 +239,20 @@
     const elements = loaded.elements;
     const roads = elements.filter(e => e.type === "way" && e.tags && e.tags.highway && Array.isArray(e.geometry));
     const features = [];
+    const chargers = [];
     for (const element of elements) {
+      const chargerTags = element.tags || {};
+      if (chargerTags.amenity === "charging_station") {
+        const point = positionOf(element);
+        if (point) chargers.push({
+          id: String(element.type) + "/" + String(element.id),
+          point,
+          name: chargerTags.name || chargerTags.operator || chargerTags.brand || "",
+          powerKw: parsePowerKw(chargerTags),
+          tesla: /tesla|supercharger/i.test([chargerTags.name, chargerTags.operator, chargerTags.brand, chargerTags.network].filter(Boolean).join(" "))
+        });
+        continue;
+      }
       const tags = element.tags || {};
       const kind = pointType(tags);
       if (!kind) continue;
@@ -235,7 +263,7 @@
       features.push({ id: String(element.type) + "/" + String(element.id), kind, point, tags, roadClass: road.roadClass, speedLimit: road.speedLimit });
     }
     lastContextKey = contextKey;
-    lastContext = { country, countryLabel: rule.label, mode: rule.mode, features, roads, stale: loaded.stale, dataSource: loaded.source };
+    lastContext = { country, countryLabel: rule.label, mode: rule.mode, features, roads, chargers, stale: loaded.stale, dataSource: loaded.source };
     return lastContext;
   }
 

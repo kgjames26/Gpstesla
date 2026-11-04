@@ -1,46 +1,61 @@
-# VECTOR — PWA de navigation GPS
+# VECTOR — Navigation GPS PWA
 
-PWA pour grand écran tactile et navigateur Chromium embarqué. L’interface reste sombre, mais la carte vectorielle par défaut utilise le style clair Bright pour rendre les routes et les intersections lisibles. Le fond satellite est disponible à la demande.
+Application Web progressive, pensée pour un grand écran tactile et Chromium embarqué. Interface française, pilotable au toucher, sans compte ni clés API côté client.
+
+## Fonctions
+
+- Carte MapLibre avec styles vectoriels jour et nuit, bâtiments OpenStreetMap extrudés en 3D et routes nocturnes éclaircies par catégorie.
+- Fond SAT indépendant du thème : imagerie World Imagery sous les routes, libellés et extrusions de bâtiments OSM.
+- Centrage automatique sur la première position GPS, repère véhicule vectoriel orienté à plat, vues poursuite 3D, nord 2D et globale.
+- Caméra de poursuite lissée, recul à vitesse élevée et zoom plus proche à faible vitesse ou avant une manœuvre.
+- Recherche Nominatim, départ GPS ou adresse, étapes intermédiaires, itinéraire automobile OSRM avec étapes vocales et contrôle des sorties interdites signalées dans les données.
+- Distance, durée, ETA, progression, vitesse, cap, altitude, précision GPS, force G calculée depuis le GPS et état de charge saisi manuellement.
+- Alertes OSM de radars fixes, feux de contrôle et dangers routiers, affichées en point ou en zone selon le pays détecté. Cache IndexedDB pour les zones consultées. Bips pendant le guidage.
+- Bornes de recharge OSM affichées sur le trajet quand elles sont présentes dans la cellule Overpass consultée, avec puissance quand renseignée.
+- Paramètres Jour / Nuit / Automatique mémorisés localement. Automatique suit la préférence de thème du système. Le choix MAP / SAT reste séparé.
+- PWA installable ; shell de l’interface disponible hors ligne et écran maintenu actif pendant le guidage si le navigateur prend en charge Screen Wake Lock.
 
 ## Déploiement Vercel
 
-1. Importer `kgjames26/Gpstesla` dans Vercel.
-2. Utiliser la commande `npm run build` et le dossier de sortie `dist` définis dans `vercel.json`.
-3. Si l’intégration Git Vercel est reliée à ce dépôt, chaque push sur `main` déclenche un nouveau déploiement.
-4. Ouvrir le site en HTTPS dans le navigateur Tesla et autoriser la localisation.
+Le dépôt est prêt pour l’intégration Git Vercel :
 
-## Navigation
+1. Projet Vercel relié à `kgjames26/Gpstesla`.
+2. Build : `npm run build`.
+3. Sortie statique : `dist`.
+4. Le dossier `api/` publie la fonction serverless `/api/safety-zones`.
+5. Chaque push sur `main` déclenche un déploiement si l’intégration Git est active.
 
-- Au premier point GPS, la carte se centre immédiatement sur l’utilisateur. `3D` active la caméra inclinée en poursuite ; `NORD` rétablit la vue de dessus.
-- La caméra suit le cap GPS avec transition adoucie. Elle recule au-dessus de 70 km/h et zoome à basse vitesse ou à l’approche d’une manœuvre lente.
-- `SAT` bascule vers un style raster satellite autonome ; `MAP` recharge le style vectoriel jour/nuit. En vue Nuit, les routes sont renforcées en blanc et gris clair, avec un contraste et une largeur adaptés à leur catégorie, y compris les rues résidentielles et les voies locales.
-- Pendant le guidage, la prochaine manœuvre est affichée au-dessus du véhicule ; les télémétries secondaires et les libellés redondants du bas sont masqués pour garder la route dégagée.\n- Le tracé combine un contour contrasté, un ruban turquoise et des chevrons directionnels.
-- OSRM calcule en profil automobile à partir du réseau OpenStreetMap. Les sens uniques et restrictions présents dans les données sont pris en compte par le profil voiture ; l’application vérifie aussi les drapeaux `entry`/`out` des intersections et bloque un tracé si la sortie sélectionnée est déclarée restreinte. Une erreur ou une donnée OSM manquante reste possible.
-- L’état de charge est saisi manuellement et mémorisé dans le navigateur. La synthèse vocale dépend des capacités du navigateur.
+## Sources et vie privée
 
-## Alertes de vigilance\n\n- Le bouton engrenage ouvre les paramètres Jour / Nuit / Automatique. Le mode automatique suit la préférence de couleur du système. Le style de carte change avec le thème ; le choix `MAP` / `SAT` reste indépendant.\n- Le serveur `/api/safety-zones` interroge Overpass pour les objets OSM `highway=speed_camera`, `enforcement=traffic_signals`, les dangers routiers balisés et les travaux. Le serveur ne constitue pas une base propriétaire et ne fournit pas de radars mobiles.\n- Les données sont mises en cache six heures dans IndexedDB. La requête Overpass est arrondie à une cellule de 0,2° ; la détection du pays passe par Nominatim avec une clé locale de grille géographique. Les alertes hors ligne peuvent être périmées.\n- Le mode d’affichage est conservateur : points précis pour les radars fixes en Belgique ; points précis de radars fixes en Espagne et zones pour les autres contrôles ; zones généralisées en France et aux États-Unis ; avertissements de contrôle désactivés en Allemagne et en Suisse. Si le pays n’est pas déterminé, les contrôles ne sont pas chargés. Les zones de 300 m en ville, 2 km sur route et 4 km sur autoroute sont des heuristiques d’affichage, pas une affirmation sur des distances légales. Les règles peuvent évoluer et la couverture OSM est incomplète.\n- L’app affiche la limite de vitesse uniquement si `maxspeed` est disponible sur une route OSM associée. L’alerte vitesse ne remplace pas les panneaux routiers. Les bips audio ne s’activent qu’après le démarrage du guidage et une interaction utilisateur.\n\n## Données, attribution et limites
+- Carte et bâtiments : OpenFreeMap / OpenStreetMap.
+- Images satellite : service World Imagery d’Esri.
+- Recherche et détection de pays : Nominatim.
+- Calcul de trajet : service OSRM public.
+- Contrôles, dangers et bornes : Overpass, avec une emprise arrondie de 0,2° côté serveur. Les résultats sont conservés six heures dans IndexedDB.
+- La position GPS est transmise à Nominatim lors de la détection du pays, à OSRM lors du calcul d’un trajet et à l’API Vercel pour les données OSM. Les requêtes Overpass utilisent le centre d’une cellule géographique plutôt que les coordonnées exactes.
+- Les fournisseurs publics ont leurs propres disponibilités et quotas. L’application ne garde pas la position GPS dans un serveur privé.
 
-- Fond vectoriel et empreintes de bâtiments : OpenFreeMap / OpenStreetMap.
-- Imagerie satellite : Esri World Imagery, créditant Esri, Vantor, Earthstar Geographics et GIS User Community. La disponibilité et la résolution varient selon le lieu.
-- Les empreintes OSM sont extrudées au-dessus du fond. Les toits et façades restent stylisés : cette version ne projette pas les pixels satellite sur les surfaces 3D et n’ajoute pas de shader SSAO.
-- Le véhicule visible en poursuite est une illustration SVG en perspective, pas un modèle 3D glTF.
-- Le ruban lumineux est un motif vectoriel posé sur l’itinéraire, pas une projection AR réelle. L’imagerie satellite fournit la texture routière visible, selon la résolution locale.
-- OSRM public n’apporte ni trafic temps réel, ni profil Tesla, ni état de batterie, ni planification de recharge. Les limites de vitesse et les données de voies fiables ne sont pas intégrées.
-- Seule l’interface est mise en cache hors ligne ; cartes, géocodage et routage nécessitent une connexion. Les services publics peuvent appliquer leurs propres quotas et conditions.
-- L’accès GPS, l’audio, WebGL et l’installation PWA dépendent des permissions et capacités du navigateur Tesla.
+## Limites connues
+
+- Les cartes et calculs nécessitent une connexion. Hors ligne, seul l’habillage PWA et le cache local des alertes déjà téléchargées restent disponibles.
+- La qualité du satellite varie selon la zone et le niveau de zoom ; l’imagerie ne peut pas fonctionner sans accès aux tuiles Esri.
+- Les sens uniques, vitesses, voies et bornes dépendent des données OSM. Une voie de circulation et une limite ne sont affichées que si les données correspondantes sont fournies.
+- Le mode juridique des alertes est conservateur : Belgique, points précis pour radars fixes en Espagne, zones généralisées en France et aux États-Unis, contrôles désactivés en Allemagne et en Suisse ; pays non déterminé, pas de caméra chargée. Les longueurs des zones de vigilance sont des heuristiques d’affichage et non des distances légales.
+- Pas d’API de télémétrie Tesla : charge et vitesse viennent du navigateur/GPS ou d’une saisie manuelle. L’application ne pilote pas le véhicule.
+- La silhouette du véhicule est une icône vectorielle, et la ligne d’itinéraire est une surcouche cartographique, pas une projection AR calibrée sur la chaussée. Le relief altimétrique n’est pas fourni par OSRM.
 
 ## Structure
 
 ```text
-index.html
-public/
-  icons/tesla-nav.svg
-  manifest.json
-  service-worker.js
-src/
-  app.js
-  styles.css
+api/safety-zones.js
+public/icons/tesla-nav.svg
+public/manifest.json
+public/service-worker.js
+src/app.js
+src/safety.js
+src/styles.css
 scripts/build.mjs
+index.html
 package.json
 vercel.json
 ```

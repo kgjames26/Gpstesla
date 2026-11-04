@@ -1,93 +1,89 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#050709" />
-  <meta name="description" content="Navigation GPS 3D pensée pour le grand écran et le navigateur embarqué." />
-  <link rel="manifest" href="/manifest.json" />
-  <link rel="icon" href="/icons/tesla-nav.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css" />
-  <link rel="stylesheet" href="/src/styles.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#070a0c">
+  <meta name="description" content="Navigation GPS vectorielle pour écran embarqué.">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/tesla-nav.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="/src/styles.css">
   <title>VECTOR — Navigation</title>
 </head>
 <body>
-  <main class="app-shell">
-    <div id="map" aria-label="Carte de navigation"></div>
-    <div class="map-vignette"></div>
-    <div id="chase-vehicle" class="chase-vehicle" aria-hidden="true">
-      <svg viewBox="0 0 240 164">
-        <defs>
-          <linearGradient id="bodyPaint" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#e8f5f1"/><stop offset=".45" stop-color="#809c98"/><stop offset="1" stop-color="#263b3a"/></linearGradient>
-          <linearGradient id="rearGlass" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#91bcc1"/><stop offset="1" stop-color="#263c40"/></linearGradient>
-          <linearGradient id="rearBumper" x1="0" x2="1"><stop stop-color="#304644"/><stop offset=".5" stop-color="#9aafaa"/><stop offset="1" stop-color="#304644"/></linearGradient>
-          <filter id="lampGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        </defs>
-        <ellipse cx="120" cy="146" rx="90" ry="12" fill="#04110f" opacity=".7"/>
-        <path d="M48 61 72 31q8-10 21-12h54q13 2 21 12l24 30 15 56-10 18H43l-10-18z" fill="url(#bodyPaint)" stroke="#d9fff4" stroke-width="2"/>
-        <path d="m75 39 14-12q5-4 12-4h38q7 0 12 4l14 12 13 25H62z" fill="url(#rearGlass)" stroke="#c3eee3" stroke-width="1.5"/>
-        <path d="M60 68h120l8 41H52z" fill="#536e6d" opacity=".76"/>
-        <path d="M67 78h27v15H67zm79 0h27v15h-27z" fill="#1d2e30" opacity=".75"/>
-        <path d="M41 105h31l-5 12H38zm127 0h31l3 12h-29z" fill="#ff7773" filter="url(#lampGlow)"/>
-        <path d="M79 106h82v7H79z" fill="#e9f5ef" opacity=".85"/>
-        <path d="m33 118 22 2 6 14-17 2-11-7zm174 0-22 2-6 14 17 2 11-7z" fill="#101a1b" stroke="#93aaa4"/>
-        <path d="M54 128h132l-8 17H62z" fill="url(#rearBumper)" stroke="#d6e8e2" stroke-width="1.5"/>
-        <path d="M90 134h60" stroke="#eaf6ef" stroke-opacity=".55" stroke-width="2"/>
-        <path d="M78 149h84" stroke="#50e4bd" stroke-width="2" stroke-linecap="round" opacity=".7"/>
-      </svg>
-    </div>
+  <main class="app-shell" data-theme="day">
+    <div id="map" aria-label="Carte de navigation" role="application"></div>
+    <div class="map-vignette" aria-hidden="true"></div>
 
     <header class="topbar glass">
-      <div class="brand"><div class="brand-mark">V</div><div><strong>VECTOR</strong><span>NAVIGATION SYSTEM</span></div></div>
-      <div class="connection"><i></i><span id="gps-status">GPS EN ATTENTE</span><b id="clock">--:--</b></div>
-      <div class="top-actions"><button id="settings-open" class="icon-button" aria-label="Ouvrir les paramètres"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.7 2.94-.08-.03a1.7 1.7 0 0 0-1.8.34l-.07.05h-3.4l-.02-.08a1.7 1.7 0 0 0-1.26-1.38 1.7 1.7 0 0 0-1.8.34l-.06.05-2.95-1.7.03-.08a1.7 1.7 0 0 0-.34-1.8l-.05-.07v-3.4l.08-.02a1.7 1.7 0 0 0 1.38-1.26 1.7 1.7 0 0 0-.34-1.8l-.05-.06 1.7-2.95.08.03a1.7 1.7 0 0 0 1.8-.34l.07-.05h3.4l.02.08a1.7 1.7 0 0 0 1.26 1.38 1.7 1.7 0 0 0 1.8-.34l.06-.05 2.95 1.7-.03.08a1.7 1.7 0 0 0 .34 1.8l.05.07v3.4l-.08.02A1.7 1.7 0 0 0 19.4 15Z"/></svg></button><button id="search-open" class="icon-button" aria-label="Rechercher une destination"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg></button></div>
+      <div class="brand"><span class="brand-mark">V</span><span class="brand-copy"><strong>VECTOR</strong><small>NAVIGATION</small></span></div>
+      <div class="gps-status" id="gps-status"><i></i><span>LOCALISATION…</span><time id="clock">--:--</time></div>
+      <div class="top-actions">
+        <button class="icon-button" id="settings-open" aria-label="Paramètres d’affichage" title="Paramètres"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1-1.6 2.8-.2-.1a2 2 0 0 0-2 .2l-.2.1h-3.2l-.1-.2a2 2 0 0 0-1.5-1.4 2 2 0 0 0-1.9.5l-.2.1-2.8-1.6.1-.2a2 2 0 0 0-.2-2l-.1-.2v-3.2l.2-.1a2 2 0 0 0 1.4-1.5 2 2 0 0 0-.5-1.9l-.1-.2 1.6-2.8.2.1a2 2 0 0 0 2-.2l.2-.1h3.2l.1.2a2 2 0 0 0 1.5 1.4 2 2 0 0 0 1.9-.5l.2-.1 2.8 1.6-.1.2a2 2 0 0 0 .2 2l.1.2v3.2l-.2.1a2 2 0 0 0-1.4 1.5 2 2 0 0 0 .5 1.9Z"/></svg></button>
+        <button class="icon-button" id="search-open" aria-label="Rechercher une destination" title="Destination"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg></button>
+      </div>
     </header>
 
-    <section class="safety-alert glass" id="safety-alert" aria-live="polite"><span class="safety-alert-symbol">!</span><div><strong id="safety-alert-title">ZONE DE VIGILANCE</strong><small id="safety-alert-distance">—</small></div><b id="safety-alert-limit">—</b></section>
-
     <section class="maneuver glass" id="maneuver-card" aria-live="polite">
-      <div class="maneuver-icon" id="maneuver-icon"><svg viewBox="0 0 48 48"><path d="M24 39V11m0 0L13 22m11-11 11 11"/></svg></div>
-      <div class="maneuver-copy"><span class="eyebrow" id="maneuver-label">PRÊT À PARTIR</span><strong id="maneuver-distance">—</strong><span id="maneuver-street">Choisissez une destination</span></div>
-      <div class="lane-mini"><div class="lane-lines"><span></span><span></span><span></span></div><small>VOIE</small><b>—</b></div>
+      <div class="turn-icon" id="maneuver-icon"><svg viewBox="0 0 48 48"><path d="M24 39V11m0 0L13 22m11-11 11 11"/></svg></div>
+      <div class="maneuver-copy"><span class="eyebrow" id="maneuver-label">PRÊT À PARTIR</span><strong id="maneuver-distance">—</strong><small id="maneuver-street">Choisissez une destination</small></div>
+      <div class="lane-indicator" aria-label="Assistance de voie"><span></span><span></span><span></span><small>VOIE</small></div>
     </section>
 
-    <section class="route-panel glass" id="route-panel">
-      <div class="panel-head"><div><span class="eyebrow">TRAJET</span><strong id="route-title">Prêt pour la route</strong></div><button id="close-route" class="quiet-button" aria-label="Effacer le trajet">×</button></div>
-      <div class="route-stats"><div><strong id="route-eta">—</strong><span>ARRIVÉE</span></div><div><strong id="route-time">—</strong><span>DURÉE</span></div><div><strong id="route-distance">—</strong><span>DISTANCE</span></div></div>
-      <div class="route-progress"><i id="progress-bar"></i></div>
-      <div class="route-foot"><span id="route-status">Aucun itinéraire actif</span><button id="start-nav" class="start-button" disabled>COMMENCER <span>↗</span></button><button id="end-nav" class="stop-button" aria-label="Terminer le guidage">ARRÊTER</button></div>
+    <section class="route-panel glass" id="route-panel" aria-label="Résumé du trajet">
+      <div class="panel-heading"><div><span class="eyebrow">TRAJET</span><strong id="route-title">Aucun trajet</strong></div><button class="quiet-button" id="clear-route" aria-label="Effacer le trajet">×</button></div>
+      <div class="route-stats"><div><strong id="route-eta">—</strong><small>ARRIVÉE</small></div><div><strong id="route-time">—</strong><small>DURÉE</small></div><div><strong id="route-distance">—</strong><small>RESTANT</small></div></div>
+      <div class="route-progress"><i id="progress-bar"></i></div><div class="route-alternatives" id="route-alternatives" hidden></div>
+      <div class="route-footer"><span id="route-status">Prêt</span><button id="start-nav" class="primary-button" disabled>DÉMARRER <b>↗</b></button><button id="end-nav" class="stop-button">ARRÊTER</button></div>
+      <div class="charger-strip" id="charger-strip" hidden><span>RECHARGE SUR LE PARCOURS</span><div id="charger-list"></div></div>
     </section>
 
-    <section class="telemetry glass">
+    <section class="safety-alert glass" id="safety-alert" aria-live="assertive" hidden>
+      <span class="alert-glyph">!</span><span class="alert-copy"><strong id="safety-title">ZONE DE VIGILANCE</strong><small id="safety-distance">—</small></span><b id="safety-limit"></b>
+    </section>
+
+    <section class="telemetry glass" id="telemetry" aria-label="Télémétrie">
       <div class="speed-readout"><strong id="speed">0</strong><span>km/h</span><small>VITESSE GPS</small></div>
-      <div class="speed-limit telemetry-item"><span>LIMITE OSM</span><strong id="speed-limit">—</strong></div><div class="telemetry-divider"></div>
-      <div class="telemetry-item heading-item"><span>CAP</span><strong><i id="heading-arrow">↑</i><b id="heading">—</b></strong></div>
-      <div class="telemetry-item"><span>ALTITUDE</span><strong id="altitude">—<small> m</small></strong></div>
-      <div class="telemetry-item"><span>PRÉCISION GPS</span><strong id="accuracy">—<small> m</small></strong></div>
-      <div class="telemetry-item soc-item"><span>BATTERIE ESTIMÉE</span><strong><input id="soc-input" type="number" min="0" max="100" value="72" aria-label="État de charge estimé en pourcentage"><small>%</small></strong></div>
+      <div class="telemetry-separator"></div>
+      <div class="telemetry-cell speed-limit"><small>LIMITE OSM</small><strong id="speed-limit">—</strong></div>
+      <div class="telemetry-cell heading-cell"><small>CAP</small><strong><i id="heading-arrow">↑</i><span id="heading">—</span></strong></div>
+      <div class="telemetry-cell altitude-cell"><small>ALTITUDE</small><strong id="altitude">— m</strong></div>
+      <div class="telemetry-cell accuracy-cell"><small>GPS ±</small><strong id="accuracy">— m</strong></div>
+      <div class="telemetry-cell gforce-cell"><small>FORCE G</small><strong id="gforce">0,00</strong></div>
+      <label class="telemetry-cell battery-cell"><small>CHARGE</small><strong><input id="soc-input" type="number" min="0" max="100" value="72" aria-label="Charge estimée en pourcentage"><span>%</span></strong></label>
     </section>
 
-    <div class="map-controls glass">
-      <button id="view-3d" class="view-button active">3D</button><button id="view-2d" class="view-button">NORD</button><span></span><button id="view-satellite" class="view-button">SAT</button><button id="view-map" class="view-button active">MAP</button><span></span><button id="recenter" class="recenter-button" aria-label="Recentrer sur ma position"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg></button>
-    </div>
-    <div class="scale-note">Satellite © Esri, Vantor, Earthstar Geographics, GIS User Community · © OpenStreetMap / OpenFreeMap</div>
+    <nav class="map-controls glass" aria-label="Commandes de carte">
+      <button id="view-3d" class="control-button active">3D</button><button id="view-north" class="control-button">NORD</button><button id="view-global" class="control-button">GLOBAL</button><i></i><button id="view-satellite" class="control-button">SAT</button><button id="view-map" class="control-button active">MAP</button><i></i><button id="recenter" class="recenter-button" aria-label="Recentrer sur ma position"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg></button>
+    </nav>
+    <div class="map-attribution">Satellite © Esri · © OpenStreetMap / OpenFreeMap</div>
 
-    <div class="settings-overlay" id="settings-overlay" aria-hidden="true"><section class="settings-sheet glass" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div class="sheet-title"><div><span class="eyebrow">PRÉFÉRENCES D’AFFICHAGE</span><strong id="settings-title">Apparence</strong></div><button id="settings-close" class="quiet-button" aria-label="Fermer les paramètres">×</button></div><fieldset class="theme-options"><legend>Mode de carte et d’interface</legend><label class="theme-option"><input type="radio" name="theme-mode" value="day"><span class="theme-swatch day-swatch"></span><span><strong>Jour</strong><small>Carte claire, lisible en plein jour</small></span><i></i></label><label class="theme-option"><input type="radio" name="theme-mode" value="night"><span class="theme-swatch night-swatch"></span><span><strong>Nuit</strong><small>Contraste renforcé, interface sombre</small></span><i></i></label><label class="theme-option"><input type="radio" name="theme-mode" value="auto"><span class="theme-swatch auto-swatch"></span><span><strong>Automatique</strong><small>Suit le thème système de l’appareil</small></span><i></i></label></fieldset></section></div>
-
-    <div class="search-overlay" id="search-overlay" aria-hidden="true">
-      <section class="search-sheet glass">
-        <div class="sheet-title"><div><span class="eyebrow">NOUVEL ITINÉRAIRE</span><strong>Où aller ?</strong></div><button id="search-close" class="quiet-button" aria-label="Fermer">×</button></div>
-        <label class="search-field"><span class="route-dot origin"></span><input id="origin-input" autocomplete="off" placeholder="Départ (ma position)" /><button id="use-current" aria-label="Utiliser ma position">◎</button></label>
-        <div class="route-connector"></div>
-        <label class="search-field"><span class="route-dot destination"></span><input id="destination-input" autocomplete="off" placeholder="Adresse, lieu ou destination" /><button id="clear-destination" aria-label="Effacer">×</button></label>
-        <div id="suggestions" class="suggestions"></div>
-        <button id="calculate-route" class="calculate-button">CALCULER L’ITINÉRAIRE <span>→</span></button>
-        <p class="privacy-note">Localisation transmise à Nominatim pour le pays, Overpass pour les alertes et OSRM pour calculer le trajet. Les requêtes Overpass utilisent une cellule géographique arrondie.</p>
+    <div class="overlay" id="settings-overlay" aria-hidden="true">
+      <section class="dialog glass" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div class="dialog-heading"><div><span class="eyebrow">SYSTÈME</span><h2 id="settings-title">Paramètres</h2></div><button class="quiet-button" data-close="settings-overlay" aria-label="Fermer">×</button></div>
+        <fieldset class="theme-picker"><legend>Apparence</legend>
+          <label><input type="radio" name="theme-mode" value="day"><span class="theme-icon day-icon"></span><span><b>Jour</b><small>Carte claire</small></span><i></i></label>
+          <label><input type="radio" name="theme-mode" value="night"><span class="theme-icon night-icon"></span><span><b>Nuit</b><small>Routes renforcées</small></span><i></i></label>
+          <label><input type="radio" name="theme-mode" value="auto"><span class="theme-icon auto-icon"></span><span><b>Automatique</b><small>Suit le thème du système</small></span><i></i></label>
+        </fieldset>
+        <p class="dialog-note">Le thème de carte reste indépendant du choix MAP / SAT.</p>
       </section>
     </div>
 
-    <div class="toast" id="toast" role="status"></div>
-    <div class="nav-footer" id="nav-footer" aria-hidden="true"><span id="next-step-short"></span></div>
+    <div class="overlay" id="search-overlay" aria-hidden="true">
+      <section class="dialog search-dialog glass" role="dialog" aria-modal="true" aria-labelledby="search-title">
+        <div class="dialog-heading"><div><span class="eyebrow">PLANIFICATION</span><h2 id="search-title">Votre trajet</h2></div><button class="quiet-button" data-close="search-overlay" aria-label="Fermer">×</button></div>
+        <label class="route-input"><i class="origin-dot"></i><input id="origin-input" placeholder="Départ — ma position" autocomplete="off"><button id="origin-current" type="button" title="Utiliser ma position">◎</button></label>
+        <div class="input-connector"></div>
+        <div id="waypoint-list"></div>
+        <label class="route-input destination-input"><i class="destination-dot"></i><input id="destination-input" placeholder="Adresse ou destination" autocomplete="off"><button id="destination-clear" type="button" title="Effacer">×</button></label>
+        <div id="search-results" class="search-results"></div>
+        <div class="search-actions"><button id="add-waypoint" class="secondary-button">+ ÉTAPE</button><button id="calculate-route" class="primary-button">CALCULER <b>→</b></button></div>
+        <p class="privacy-note">La position sert au centrage, au calcul d’itinéraire et aux alertes OSM. Les services externes utilisés sont détaillés dans le README.</p>
+      </section>
+    </div>
+    <div id="toast" class="toast" role="status"></div>
   </main>
   <script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js" defer></script>
   <script src="/src/safety.js" defer></script>
