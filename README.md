@@ -5,7 +5,7 @@ PWA statique en français, conçue pour un grand écran tactile et le navigateur
 ## Déploiement Vercel
 
 1. Importer `kgjames26/Gpstesla` dans Vercel.
-2. Garder la configuration détectée depuis `vercel.json` : commande `npm run build`, sortie `.`.
+2. Garder la configuration détectée depuis `vercel.json` : commande `npm run build`, sortie `dist`.
 3. Déployer. Chaque push sur `main` déclenchera le déploiement si l’intégration Git Vercel est activée.
 4. Ouvrir l’URL en HTTPS dans le navigateur Tesla et autoriser la localisation.
 
@@ -41,4 +41,5 @@ src/
   styles.css
 vercel.json
 package.json
+scripts/build.mjs
 ```
