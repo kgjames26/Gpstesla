@@ -18,6 +18,7 @@
     state.map.on('load',()=>{
       state.nativeLayers=state.map.getStyle().layers.map(layer=>({id:layer.id,visibility:layer.layout?.visibility||'visible',keepLabel:layer.type==='symbol'&&Boolean(layer.layout?.['text-field'])}));
       addSatelliteLayer();
+      addRoadContrast();
       addBuildings();
       addRouteChevronPattern();
       state.map.addSource('route',{type:'geojson',lineMetrics:true,data:{type:'FeatureCollection',features:[]}});
@@ -43,6 +44,17 @@
     for(let x=-20;x<64;x+=32){ctx.beginPath();ctx.moveTo(x,5);ctx.lineTo(x+14,16);ctx.lineTo(x,27);ctx.stroke();}
     state.map.addImage('route-chevron',canvas,{pixelRatio:2});
   }
+  function addRoadContrast(){
+    const map=state.map;
+    const road=map.getStyle().layers.find(layer=>layer['source-layer']==='transportation');
+    if(!road)return;
+    const before=map.getStyle().layers.find(layer=>layer.type==='symbol'&&layer.layout?.['text-field'])?.id;
+    const classes=['motorway','trunk','primary','secondary','tertiary','minor','service','street','track','path','pedestrian'];
+    const filter=['in',['get','class'],['literal',classes]];
+    const width=['interpolate',['linear'],['zoom'],8,.9,11,1.5,14,2.6,17,4.8,20,7];
+    map.addLayer({id:'road-contrast-casing',source:road.source,'source-layer':'transportation',type:'line',filter,layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#16232d','line-width':['+',width,2.2],'line-opacity':.96}},before);
+    map.addLayer({id:'road-contrast-core',source:road.source,'source-layer':'transportation',type:'line',filter,layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['match',['get','class'],['motorway','trunk'],'#ffe19a',['primary','secondary'],'#e9f2f5',['tertiary','minor'],'#cfe0ea',['service','street'],'#bdcfda',['track','path','pedestrian'],'#b9d0c6','#d5e4ec'],'line-width':width,'line-opacity':1}},before);
+  }
   function addBuildings(){
     const map=state.map, style=map.getStyle();
     const building=style.layers.find(l=>l['source-layer']==='building');
@@ -60,6 +72,7 @@
       if(!state.map.getLayer(layer.id))continue;
       state.map.setLayoutProperty(layer.id,'visibility',satellite?(layer.keepLabel?'visible':'none'):layer.visibility);
     }
+    for(const id of ['road-contrast-casing','road-contrast-core'])if(state.map.getLayer(id))state.map.setLayoutProperty(id,'visibility',satellite?'none':'visible');
     $('view-satellite')?.classList.toggle('active',satellite);
     $('view-map')?.classList.toggle('active',!satellite);
   }
