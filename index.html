@@ -40,8 +40,10 @@
     <header class="topbar glass">
       <div class="brand"><div class="brand-mark">V</div><div><strong>VECTOR</strong><span>NAVIGATION SYSTEM</span></div></div>
       <div class="connection"><i></i><span id="gps-status">GPS EN ATTENTE</span><b id="clock">--:--</b></div>
-      <button id="search-open" class="icon-button" aria-label="Rechercher une destination"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg></button>
+      <div class="top-actions"><button id="settings-open" class="icon-button" aria-label="Ouvrir les paramètres"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.7 2.94-.08-.03a1.7 1.7 0 0 0-1.8.34l-.07.05h-3.4l-.02-.08a1.7 1.7 0 0 0-1.26-1.38 1.7 1.7 0 0 0-1.8.34l-.06.05-2.95-1.7.03-.08a1.7 1.7 0 0 0-.34-1.8l-.05-.07v-3.4l.08-.02a1.7 1.7 0 0 0 1.38-1.26 1.7 1.7 0 0 0-.34-1.8l-.05-.06 1.7-2.95.08.03a1.7 1.7 0 0 0 1.8-.34l.07-.05h3.4l.02.08a1.7 1.7 0 0 0 1.26 1.38 1.7 1.7 0 0 0 1.8-.34l.06-.05 2.95 1.7-.03.08a1.7 1.7 0 0 0 .34 1.8l.05.07v3.4l-.08.02A1.7 1.7 0 0 0 19.4 15Z"/></svg></button><button id="search-open" class="icon-button" aria-label="Rechercher une destination"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg></button></div>
     </header>
+
+    <section class="safety-alert glass" id="safety-alert" aria-live="polite"><span class="safety-alert-symbol">!</span><div><strong id="safety-alert-title">ZONE DE VIGILANCE</strong><small id="safety-alert-distance">—</small></div><b id="safety-alert-limit">—</b></section>
 
     <section class="maneuver glass" id="maneuver-card" aria-live="polite">
       <div class="maneuver-icon" id="maneuver-icon"><svg viewBox="0 0 48 48"><path d="M24 39V11m0 0L13 22m11-11 11 11"/></svg></div>
@@ -58,7 +60,7 @@
 
     <section class="telemetry glass">
       <div class="speed-readout"><strong id="speed">0</strong><span>km/h</span><small>VITESSE GPS</small></div>
-      <div class="telemetry-divider"></div>
+      <div class="speed-limit telemetry-item"><span>LIMITE OSM</span><strong id="speed-limit">—</strong></div><div class="telemetry-divider"></div>
       <div class="telemetry-item"><span>CAP</span><strong><i id="heading-arrow">↑</i><b id="heading">—</b></strong></div>
       <div class="telemetry-item"><span>ALTITUDE</span><strong id="altitude">—<small> m</small></strong></div>
       <div class="telemetry-item"><span>PRÉCISION GPS</span><strong id="accuracy">—<small> m</small></strong></div>
@@ -70,6 +72,8 @@
     </div>
     <div class="scale-note">Satellite © Esri, Vantor, Earthstar Geographics, GIS User Community · © OpenStreetMap / OpenFreeMap</div>
 
+    <div class="settings-overlay" id="settings-overlay" aria-hidden="true"><section class="settings-sheet glass" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div class="sheet-title"><div><span class="eyebrow">PRÉFÉRENCES D’AFFICHAGE</span><strong id="settings-title">Apparence</strong></div><button id="settings-close" class="quiet-button" aria-label="Fermer les paramètres">×</button></div><fieldset class="theme-options"><legend>Mode de carte et d’interface</legend><label class="theme-option"><input type="radio" name="theme-mode" value="day"><span class="theme-swatch day-swatch"></span><span><strong>Jour</strong><small>Carte claire, lisible en plein jour</small></span><i></i></label><label class="theme-option"><input type="radio" name="theme-mode" value="night"><span class="theme-swatch night-swatch"></span><span><strong>Nuit</strong><small>Contraste renforcé, interface sombre</small></span><i></i></label><label class="theme-option"><input type="radio" name="theme-mode" value="auto"><span class="theme-swatch auto-swatch"></span><span><strong>Automatique</strong><small>Suit le thème système de l’appareil</small></span><i></i></label></fieldset></section></div>
+
     <div class="search-overlay" id="search-overlay" aria-hidden="true">
       <section class="search-sheet glass">
         <div class="sheet-title"><div><span class="eyebrow">NOUVEL ITINÉRAIRE</span><strong>Où aller ?</strong></div><button id="search-close" class="quiet-button" aria-label="Fermer">×</button></div>
@@ -78,7 +82,7 @@
         <label class="search-field"><span class="route-dot destination"></span><input id="destination-input" autocomplete="off" placeholder="Adresse, lieu ou destination" /><button id="clear-destination" aria-label="Effacer">×</button></label>
         <div id="suggestions" class="suggestions"></div>
         <button id="calculate-route" class="calculate-button">CALCULER L’ITINÉRAIRE <span>→</span></button>
-        <p class="privacy-note">Votre position reste dans ce navigateur. Recherche via Nominatim ; itinéraire via OSRM.</p>
+        <p class="privacy-note">Localisation transmise à Nominatim pour le pays, Overpass pour les alertes et OSRM pour calculer le trajet. Les requêtes Overpass utilisent une cellule géographique arrondie.</p>
       </section>
     </div>
 
@@ -86,6 +90,7 @@
     <div class="nav-footer" id="nav-footer"><button id="end-nav">TERMINER LE GUIDAGE</button><span id="next-step-short">Suivi GPS actif</span></div>
   </main>
   <script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js" defer></script>
+  <script src="/src/safety.js" defer></script>
   <script src="/src/app.js" defer></script>
 </body>
 </html>

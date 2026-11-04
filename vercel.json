@@ -26,5 +26,10 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/safety-zones.js": {
+      "maxDuration": 15
+    }
+  }
 }
