@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "VECTOR Navigation",
+  "short_name": "VECTOR",
+  "description": "Navigation GPS 3D pour écran embarqué",
+  "lang": "fr-BE",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#050709",
+  "theme_color": "#050709",
+  "icons": [
+    { "src": "/icons/tesla-nav.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

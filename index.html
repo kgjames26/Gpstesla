@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#050709" />
+  <meta name="description" content="Navigation GPS 3D pensée pour le grand écran et le navigateur embarqué." />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/tesla-nav.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="/src/styles.css" />
+  <title>VECTOR — Navigation</title>
+</head>
+<body>
+  <main class="app-shell">
+    <div id="map" aria-label="Carte de navigation"></div>
+    <div class="map-vignette"></div>
+
+    <header class="topbar glass">
+      <div class="brand"><div class="brand-mark">V</div><div><strong>VECTOR</strong><span>NAVIGATION SYSTEM</span></div></div>
+      <div class="connection"><i></i><span id="gps-status">GPS EN ATTENTE</span><b id="clock">--:--</b></div>
+      <button id="search-open" class="icon-button" aria-label="Rechercher une destination"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg></button>
+    </header>
+
+    <section class="maneuver glass" id="maneuver-card" aria-live="polite">
+      <div class="maneuver-icon" id="maneuver-icon"><svg viewBox="0 0 48 48"><path d="M24 39V11m0 0L13 22m11-11 11 11"/></svg></div>
+      <div class="maneuver-copy"><span class="eyebrow" id="maneuver-label">PRÊT À PARTIR</span><strong id="maneuver-distance">—</strong><span id="maneuver-street">Choisissez une destination</span></div>
+      <div class="lane-mini"><div class="lane-lines"><span></span><span></span><span></span></div><small>VOIE</small><b>—</b></div>
+    </section>
+
+    <section class="route-panel glass" id="route-panel">
+      <div class="panel-head"><div><span class="eyebrow">TRAJET</span><strong id="route-title">Prêt pour la route</strong></div><button id="close-route" class="quiet-button" aria-label="Effacer le trajet">×</button></div>
+      <div class="route-stats"><div><strong id="route-eta">—</strong><span>ARRIVÉE</span></div><div><strong id="route-time">—</strong><span>DURÉE</span></div><div><strong id="route-distance">—</strong><span>DISTANCE</span></div></div>
+      <div class="route-progress"><i id="progress-bar"></i></div>
+      <div class="route-foot"><span id="route-status">Aucun itinéraire actif</span><button id="start-nav" class="start-button" disabled>COMMENCER <span>↗</span></button></div>
+    </section>
+
+    <section class="telemetry glass">
+      <div class="speed-readout"><strong id="speed">0</strong><span>km/h</span><small>VITESSE GPS</small></div>
+      <div class="telemetry-divider"></div>
+      <div class="telemetry-item"><span>CAP</span><strong><i id="heading-arrow">↑</i><b id="heading">—</b></strong></div>
+      <div class="telemetry-item"><span>ALTITUDE</span><strong id="altitude">—<small> m</small></strong></div>
+      <div class="telemetry-item"><span>PRÉCISION GPS</span><strong id="accuracy">—<small> m</small></strong></div>
+      <div class="telemetry-item soc-item"><span>BATTERIE ESTIMÉE</span><strong><input id="soc-input" type="number" min="0" max="100" value="72" aria-label="État de charge estimé en pourcentage"><small>%</small></strong></div>
+    </section>
+
+    <div class="map-controls glass">
+      <button id="view-3d" class="view-button active">3D</button><button id="view-2d" class="view-button">NORD</button><span></span><button id="recenter" class="recenter-button" aria-label="Recentrer sur ma position"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg></button>
+    </div>
+    <div class="scale-note">© OpenStreetMap · OpenFreeMap</div>
+
+    <div class="search-overlay" id="search-overlay" aria-hidden="true">
+      <section class="search-sheet glass">
+        <div class="sheet-title"><div><span class="eyebrow">NOUVEL ITINÉRAIRE</span><strong>Où aller ?</strong></div><button id="search-close" class="quiet-button" aria-label="Fermer">×</button></div>
+        <label class="search-field"><span class="route-dot origin"></span><input id="origin-input" autocomplete="off" placeholder="Départ (ma position)" /><button id="use-current" aria-label="Utiliser ma position">◎</button></label>
+        <div class="route-connector"></div>
+        <label class="search-field"><span class="route-dot destination"></span><input id="destination-input" autocomplete="off" placeholder="Adresse, lieu ou destination" /><button id="clear-destination" aria-label="Effacer">×</button></label>
+        <div id="suggestions" class="suggestions"></div>
+        <button id="calculate-route" class="calculate-button">CALCULER L’ITINÉRAIRE <span>→</span></button>
+        <p class="privacy-note">Votre position reste dans ce navigateur. Recherche via Nominatim ; itinéraire via OSRM.</p>
+      </section>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+    <div class="nav-footer" id="nav-footer"><button id="end-nav">TERMINER LE GUIDAGE</button><span id="next-step-short">Suivi GPS actif</span></div>
+  </main>
+  <script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js" defer></script>
+  <script src="/src/app.js" defer></script>
+</body>
+</html>

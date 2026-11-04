@@ -1,0 +1,7 @@
+{
+  "name": "vector-tesla-navigation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PWA de navigation GPS 3D pour navigateur embarqué",
+  "scripts": { "build": "node -e \"console.log('Static PWA ready for Vercel')\"" }
+}
