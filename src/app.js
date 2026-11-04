@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const state = { map:null, location:null, destination:null, route:null, steps:[], stepIndex:0, watchId:null, navigating:false, heading:0, lastSpoken:-1, markers:[], routeCoords:[], lastRouteProgress:0, toastTimer:null, searchTimer:null };
+  const state = { map:null, location:null, destination:null, route:null, steps:[], stepIndex:0, watchId:null, navigating:false, heading:0, lastSpoken:-1, lastAnnouncedStep:-1, lastVoiceBucket:500, markers:[], routeCoords:[], lastRouteProgress:0, toastTimer:null, searchTimer:null };
   const defaultCenter = [4.533, 50.337];
   const styleUrl = 'https://tiles.openfreemap.org/styles/dark';
   const compact = new Intl.NumberFormat('fr-BE', { maximumFractionDigits: 0 });
@@ -23,14 +23,6 @@
       if(state.location)drawLocation();
     });
     state.map.on('error',e=>{if(e?.error?.status>=500)console.warn('Map tile service unavailable',e.error);});
-  }
-  function addBuildings(){
-    const map=state.map;
-    const layer=map.getStyle().layers.find(l=>l.type==='symbol'&&l.layout?.['text-field']);
-    const first=layer?.id;
-    const source='openmaptiles';
-    if(!map.getSource(source))return;
-    map.addLayer({id:'buildings-3d',source, 'source-layer':'building',type:'fill-extrusion',minzoom:14,paint:{'fill-extrusion-color':['interpolate',['linear'],['get','render_height'],0,'#1c292a',35,'#344647',90,'#526567'],'fill-extrusion-height':['coalesce',['get','render_height'],['*',['coalesce',['get','building:levels'],3],3.2]],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.76,'fill-extrusion-vertical-gradient':true}},first);
   }
   function drawLocation(){
     if(!state.map||!state.map.isStyleLoaded()||!state.location)return;
@@ -79,7 +71,7 @@
     try{
       const url=`https://router.project-osrm.org/route/v1/driving/${start.join(',')};${end.join(',')}?overview=full&geometries=geojson&steps=true&alternatives=true`;
       const response=await fetch(url);if(!response.ok)throw Error('Route indisponible');const data=await response.json();if(data.code!=='Ok'||!data.routes?.length)throw Error('Aucun itinéraire trouvé');
-      state.route=data.routes[0];state.routeCoords=state.route.geometry.coordinates;state.steps=state.route.legs.flatMap(leg=>leg.steps).filter(step=>step.distance>0);state.stepIndex=0;state.lastSpoken=-1;
+      state.route=data.routes[0];state.routeCoords=state.route.geometry.coordinates;state.steps=state.route.legs.flatMap(leg=>leg.steps).filter(step=>step.distance>0);state.stepIndex=0;state.lastSpoken=-1;state.lastAnnouncedStep=-1;state.lastVoiceBucket=500;
       state.map.getSource('route').setData({type:'Feature',geometry:state.route.geometry,properties:{}});
       state.markers.forEach(m=>m.remove());state.markers=[];
       for(const [coord,cls] of [[start,'start'],[end,'']]){const el=document.createElement('div');el.className=`route-marker ${cls}`;state.markers.push(new maplibregl.Marker({element:el}).setLngLat(coord).addTo(state.map));}
@@ -99,10 +91,10 @@
   function haversine(a,b){const rad=x=>x*Math.PI/180, dLat=rad(b[1]-a[1]),dLon=rad(b[0]-a[0]);const x=Math.sin(dLat/2)**2+Math.cos(rad(a[1]))*Math.cos(rad(b[1]))*Math.sin(dLon/2)**2;return 6371000*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
   function nearestRouteProgress(point){let best={distance:Infinity,index:0,progress:0};let total=0;for(let i=1;i<state.routeCoords.length;i++){const segment=haversine(state.routeCoords[i-1],state.routeCoords[i]);const d=haversine(point,state.routeCoords[i]);if(d<best.distance)best={distance:d,index:i,progress:total};total+=segment;}return {...best,total};}
   function updateNavigation(pos){if(!state.route||!state.location)return;const n=nearestRouteProgress([state.location.longitude,state.location.latitude]);const progress=Math.min(.99,n.progress/n.total);$('progress-bar').style.width=`${progress*100}%`;const remain=Math.max(0,state.route.distance-n.progress);$('route-distance').textContent=`${(remain/1000).toFixed(1).replace('.',',')} km`;$('route-time').textContent=formatDuration(Math.max(0,state.route.duration*(1-progress)));$('route-eta').textContent=new Intl.DateTimeFormat('fr-BE',{hour:'2-digit',minute:'2-digit'}).format(new Date(Date.now()+Math.max(0,state.route.duration*(1-progress))*1000));
-    let cumulative=0,idx=state.stepIndex;for(let i=state.stepIndex;i<state.steps.length;i++){cumulative+=state.steps[i].distance;if(cumulative>n.distance*.15){idx=i;break;}}while(idx<state.steps.length-1&&idx<state.stepIndex)idx++;state.stepIndex=Math.max(state.stepIndex,idx);const step=state.steps[state.stepIndex];setManeuver(step,Math.max(0,(step?.distance||0)-n.distance));
+    let cumulative=0,idx=0;for(let i=0;i<state.steps.length;i++){cumulative+=state.steps[i].distance;if(n.progress<cumulative){idx=i;break;}idx=Math.min(i+1,state.steps.length-1);}state.stepIndex=Math.max(state.stepIndex,idx);const step=state.steps[state.stepIndex];let distanceToStep=0;for(let i=0;i<=state.stepIndex;i++)distanceToStep+=state.steps[i].distance;distanceToStep=Math.max(0,distanceToStep-n.progress);setManeuver(step,distanceToStep);
     if(n.distance>90&&state.lastSpoken!==-2){toast('Vous semblez éloigné du tracé. Vérifiez la route.');state.lastSpoken=-2;}
-    if(n.distance<60)state.lastSpoken=-1;
-    const meters=step?Math.max(0,step.distance-n.distance):0;if(step&&meters<450&&meters>0&&meters<state.lastSpoken){const rounded=meters<100?Math.round(meters/10)*10:Math.round(meters/50)*50;if(rounded!==state.lastSpoken){speak(`${maneuverDescription(step)} ${step.name||''}, dans ${rounded} mètres`);state.lastSpoken=rounded;}}
+    if(state.stepIndex!==state.lastAnnouncedStep){state.lastAnnouncedStep=state.stepIndex;state.lastVoiceBucket=500;}
+    if(step&&distanceToStep<=450&&distanceToStep>0){const bucket=distanceToStep>250?400:distanceToStep>150?200:distanceToStep>65?100:30;if(bucket<state.lastVoiceBucket){speak(`${maneuverDescription(step)} ${step.name||''}, dans ${bucket} mètres`);state.lastVoiceBucket=bucket;}}
   }
   function speak(text){if(!('speechSynthesis'in window))return;speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(text));}
   function beginNavigation(){if(!state.route)return;state.navigating=true;$('nav-footer').classList.add('active');$('start-nav').disabled=true;$('start-nav').textContent='GUIDAGE ACTIF';state.map.easeTo({center:state.location?[state.location.longitude,state.location.latitude]:state.routeCoords[0],zoom:17.2,pitch:64,bearing:state.heading,duration:950});toast('Guidage lancé. Gardez les yeux sur la route.');if(state.steps[0])speak(`${maneuverDescription(state.steps[0])}, ${formatDistance(state.steps[0].distance)}`);}
