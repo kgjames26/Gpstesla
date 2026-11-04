@@ -4,7 +4,7 @@
   const state = { map:null, location:null, destination:null, route:null, steps:[], stepIndex:0, watchId:null, navigating:false, heading:0, lastSpoken:-1, lastAnnouncedStep:-1, lastVoiceBucket:500, markers:[], routeCoords:[], lastRouteProgress:0, distanceToManeuver:Infinity, mapMode:'map', cameraMode:'3d', nativeLayers:[], carMarker:null, toastTimer:null, searchTimer:null, themeMode:'auto', effectiveTheme:'day', safetyContext:null, safetyLastFetch:0, safetyPromise:null, safetyAlertKey:'', audioContext:null, lastSafetyCountry:'' };
   const defaultCenter = [4.533, 50.337];
   const styleUrls = { day:'https://tiles.openfreemap.org/styles/bright', night:'https://tiles.openfreemap.org/styles/dark' };
-  const satelliteUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+  const satelliteUrl = 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
   function toast(message) { const el=$('toast'); el.textContent=message; el.classList.add('show'); clearTimeout(state.toastTimer); state.toastTimer=setTimeout(()=>el.classList.remove('show'),2600); }
   function updateClock(){ $('clock').textContent=new Intl.DateTimeFormat('fr-BE',{hour:'2-digit',minute:'2-digit'}).format(new Date()); }
@@ -22,12 +22,15 @@
     shell.dataset.theme=next;
     document.querySelector('meta[name="theme-color"]').content=next==='night'?'#050709':'#e9eef1';
     document.querySelectorAll('input[name="theme-mode"]').forEach(input=>input.checked=input.value===state.themeMode);
-    if(changed&&state.map&&state.map.isStyleLoaded())state.map.setStyle(styleUrls[next]);
+    if(changed&&state.map)state.map.setStyle(state.mapMode==='satellite'?satelliteStyle():styleUrls[next]);
+  }
+  function satelliteStyle(){
+    return {version:8,sources:{'satellite-imagery':{type:'raster',tiles:[satelliteUrl],tileSize:256,minzoom:0,maxzoom:19,attribution:'Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community'}},layers:[{id:'satellite-base',type:'raster',source:'satellite-imagery',paint:{'raster-fade-duration':0,'raster-opacity':1}}]};
   }
   function installMapStyle(){
     if(!state.map||!state.map.isStyleLoaded())return;
     state.nativeLayers=state.map.getStyle().layers.map(layer=>({id:layer.id,visibility:layer.layout?.visibility||'visible',keepLabel:layer.type==='symbol'&&Boolean(layer.layout?.['text-field'])}));
-    addSatelliteLayer();addRoadContrast();addBuildings();addRouteChevronPattern();
+    if(state.mapMode!=='satellite'){addRoadContrast();addBuildings();}addRouteChevronPattern();
     state.map.addSource('route',{type:'geojson',lineMetrics:true,data:state.route?{type:'Feature',geometry:state.route.geometry,properties:{}}:{type:'FeatureCollection',features:[]}});
     state.map.addLayer({id:'route-casing',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#073c38','line-width':['interpolate',['linear'],['zoom'],10,9,16,18,19,23],'line-opacity':.9}});
     state.map.addLayer({id:'route-glow',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#50e4bd','line-width':15,'line-blur':8,'line-opacity':.42}});
@@ -39,7 +42,7 @@
     state.map.addSource('safety-points',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
     state.map.addLayer({id:'safety-points-glow',type:'circle',source:'safety-points',paint:{'circle-radius':14,'circle-color':'#ffb648','circle-opacity':.28,'circle-blur':.3}});
     state.map.addLayer({id:'safety-points-core',type:'circle',source:'safety-points',paint:{'circle-radius':6,'circle-color':'#ffd36a','circle-stroke-color':'#fff5db','circle-stroke-width':2}});
-    setMapMode(state.mapMode);
+    syncMapButtons();
     if(state.location)drawLocation();
     if(state.location)refreshSafety(true);
   }
@@ -52,14 +55,6 @@
     state.map.on('style.load',installMapStyle);
     state.map.on('rotate',drawLocation);
     state.map.on('error',e=>{if(e?.error?.status>=500)console.warn('Map tile service unavailable',e.error);});
-  }
-  function addSatelliteLayer(){
-    const map=state.map, layers=map.getStyle().layers||[];
-    map.addSource('satellite-imagery',{type:'raster',tiles:[satelliteUrl],tileSize:256,maxzoom:19,attribution:'Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community'});
-    const backgroundIndex=layers.findIndex(layer=>layer.type==='background');
-    const firstMapLayer=backgroundIndex>=0?layers[backgroundIndex+1]?.id:undefined;
-    const layer={id:'satellite-base',type:'raster',source:'satellite-imagery',paint:{'raster-fade-duration':0,'raster-opacity':1,'raster-resampling':'linear'}};
-    if(firstMapLayer)map.addLayer(layer,firstMapLayer);else map.addLayer(layer);
   }
   function addRouteChevronPattern(){
     const canvas=document.createElement('canvas');canvas.width=64;canvas.height=32;
@@ -91,18 +86,16 @@
     const before=style.layers.find(l=>l.type==='symbol'&&l.layout?.['text-field'])?.id;
     map.addLayer({id:'buildings-3d',source,'source-layer':sourceLayer,type:'fill-extrusion',minzoom:14,paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],10],10,'#a8b8b3',60,'#d1ddd7'],'fill-extrusion-height':['coalesce',['get','render_height'],['*',['coalesce',['get','building:levels'],3],3.2]],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.9,'fill-extrusion-vertical-gradient':true}},before);
   }
-  function setMapMode(mode){
-    if(!state.map)return;
-    state.mapMode=mode;
-    const satellite=mode==='satellite';
-    if(state.map.getLayer('satellite-base'))state.map.setLayoutProperty('satellite-base','visibility',satellite?'visible':'none');
-    for(const layer of state.nativeLayers){
-      if(!state.map.getLayer(layer.id))continue;
-      state.map.setLayoutProperty(layer.id,'visibility',satellite?(layer.keepLabel?'visible':'none'):layer.visibility);
-    }
-    for(const id of ['road-contrast-casing','road-contrast-core'])if(state.map.getLayer(id))state.map.setLayoutProperty(id,'visibility',satellite?'none':'visible');
+  function syncMapButtons(){
+    const satellite=state.mapMode==='satellite';
     $('view-satellite')?.classList.toggle('active',satellite);
     $('view-map')?.classList.toggle('active',!satellite);
+  }
+  function setMapMode(mode){
+    if(!state.map||!['map','satellite'].includes(mode))return;
+    if(state.mapMode===mode){syncMapButtons();return;}
+    state.mapMode=mode;syncMapButtons();
+    state.map.setStyle(mode==='satellite'?satelliteStyle():styleUrls[state.effectiveTheme]);
   }
   function cameraZoom(){
     const speed=(state.location?.speed||0)*3.6;
@@ -141,7 +134,7 @@
     if(zones)zones.setData({type:'FeatureCollection',features:result.zones||[]});
     if(points)points.setData({type:'FeatureCollection',features:result.points||[]});
     const limit=result.speedLimit;
-    $('speed-limit').textContent=limit?String(limit):'—';
+    $('speed-limit').textContent=limit?limit+' km/h':'—';
     const current=Math.round((state.location?.speed||0)*3.6), over=Boolean(limit&&current>limit+2);
     document.querySelector('.speed-readout').classList.toggle('over-limit',over);
     const alert=result.alert, card=$('safety-alert');
@@ -188,7 +181,7 @@
       $('accuracy').innerHTML=Number.isFinite(c.accuracy)?`${Math.round(c.accuracy)}<small> m</small>`:'—<small> m</small>';
       $('heading').textContent=Number.isFinite(state.heading)?`${Math.round(state.heading)}°`:'—';$('heading-arrow').style.transform=`rotate(${state.heading}deg)`;
       setConnection(true,'GPS ACTIF');drawLocation();refreshSafety(false);
-      if(state.map&&!previous)state.map.easeTo({center:[c.longitude,c.latitude],zoom:16.5,pitch:64,duration:700});
+      if(state.map&&!previous)state.map.jumpTo({center:[c.longitude,c.latitude],zoom:16.5,pitch:64});
       if(state.navigating&&previous){updateNavigation(pos);updateChaseCamera();}if(state.navigating)refreshSafety(false);
     },err=>{setConnection(false,err.code===1?'GPS REFUSÉ':'GPS FAIBLE');if(err.code===1)toast('Autorisez la localisation dans les réglages du navigateur.');},{enableHighAccuracy:true,maximumAge:1000,timeout:12000});
   }
@@ -238,7 +231,7 @@
   }
   function maneuverDescription(step){const type=step?.maneuver?.type, mod=step?.maneuver?.modifier;const text={depart:'Continuez',arrive:'Vous êtes arrivé',turn:mod==='left'?'Tournez à gauche':mod==='right'?'Tournez à droite':`Tournez ${mod||''}`,fork:mod==='left'?'Prenez la branche gauche':'Prenez la branche droite',roundabout:'Au rond-point, prenez la sortie',merge:'Rejoignez la voie','new name':'Continuez sur'};return text[type]||'Continuez';}
   function arrowPath(step){const mod=step?.maneuver?.modifier||'';let d='M24 39V11m0 0L13 22m11-11 11 11';if(mod.includes('right'))d='M10 39V24q0-7 7-7h18m0 0L25 7m10 10L25 28';if(mod.includes('left'))d='M38 39V24q0-7-7-7H13m0 0L23 7m-10 10 10 11';if(mod.includes('uturn'))d='M34 39V20q0-10-10-10t-10 10v2m0 0 8-8m-8 8-8-8';return d;}
-  function setManeuver(step, distance){if(!step){$('maneuver-label').textContent='ARRIVÉE';$('maneuver-distance').textContent='';$('maneuver-street').textContent='Vous êtes arrivé';return;}const icon=$('maneuver-icon').querySelector('svg path');icon.setAttribute('d',arrowPath(step));$('maneuver-label').textContent=maneuverDescription(step).toUpperCase();$('maneuver-distance').textContent=formatDistance(distance||step.distance);$('maneuver-street').textContent=step.name||'Suivez la route';$('next-step-short').textContent=`${maneuverDescription(step)} ${step.name||''}`;}
+  function setManeuver(step, distance){if(!step){$('maneuver-label').textContent='ARRIVÉE';$('maneuver-distance').textContent='';$('maneuver-street').textContent='Vous êtes arrivé';return;}const icon=$('maneuver-icon').querySelector('svg path');icon.setAttribute('d',arrowPath(step));$('maneuver-label').textContent=maneuverDescription(step).toUpperCase();$('maneuver-distance').textContent=formatDistance(distance||step.distance);$('maneuver-street').textContent=step.name||'Suivez la route';if($('next-step-short'))$('next-step-short').textContent=`${maneuverDescription(step)} ${step.name||''}`;}
   function haversine(a,b){const rad=x=>x*Math.PI/180, dLat=rad(b[1]-a[1]),dLon=rad(b[0]-a[0]);const x=Math.sin(dLat/2)**2+Math.cos(rad(a[1]))*Math.cos(rad(b[1]))*Math.sin(dLon/2)**2;return 6371000*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
   function nearestRouteProgress(point){let best={distance:Infinity,index:0,progress:0};let total=0;for(let i=1;i<state.routeCoords.length;i++){const segment=haversine(state.routeCoords[i-1],state.routeCoords[i]);const d=haversine(point,state.routeCoords[i]);if(d<best.distance)best={distance:d,index:i,progress:total};total+=segment;}return {...best,total};}
   function updateNavigation(pos){if(!state.route||!state.location)return;const n=nearestRouteProgress([state.location.longitude,state.location.latitude]);const progress=Math.min(.99,n.progress/n.total);$('progress-bar').style.width=`${progress*100}%`;const remain=Math.max(0,state.route.distance-n.progress);$('route-distance').textContent=`${(remain/1000).toFixed(1).replace('.',',')} km`;$('route-time').textContent=formatDuration(Math.max(0,state.route.duration*(1-progress)));$('route-eta').textContent=new Intl.DateTimeFormat('fr-BE',{hour:'2-digit',minute:'2-digit'}).format(new Date(Date.now()+Math.max(0,state.route.duration*(1-progress))*1000));

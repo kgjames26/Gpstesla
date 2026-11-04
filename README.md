@@ -11,10 +11,10 @@ PWA pour grand écran tactile et navigateur Chromium embarqué. L’interface re
 
 ## Navigation
 
-- `3D` active la caméra inclinée en poursuite ; `NORD` rétablit la vue de dessus.
+- Au premier point GPS, la carte se centre immédiatement sur l’utilisateur. `3D` active la caméra inclinée en poursuite ; `NORD` rétablit la vue de dessus.
 - La caméra suit le cap GPS avec transition adoucie. Elle recule au-dessus de 70 km/h et zoome à basse vitesse ou à l’approche d’une manœuvre lente.
-- `SAT` affiche l’imagerie World Imagery ; `MAP` revient au fond vectoriel. La couche satellite est placée au-dessus du fond opaque et sous les couches de carte. En vue Nuit, les routes sont renforcées en blanc et gris clair, avec un contraste et une largeur adaptés à leur catégorie, y compris les rues résidentielles et les voies locales.
-- Le tracé combine un contour contrasté, un ruban turquoise et des chevrons directionnels.
+- `SAT` bascule vers un style raster satellite autonome ; `MAP` recharge le style vectoriel jour/nuit. En vue Nuit, les routes sont renforcées en blanc et gris clair, avec un contraste et une largeur adaptés à leur catégorie, y compris les rues résidentielles et les voies locales.
+- Pendant le guidage, la prochaine manœuvre est affichée au-dessus du véhicule ; les télémétries secondaires et les libellés redondants du bas sont masqués pour garder la route dégagée.\n- Le tracé combine un contour contrasté, un ruban turquoise et des chevrons directionnels.
 - OSRM calcule en profil automobile à partir du réseau OpenStreetMap. Les sens uniques et restrictions présents dans les données sont pris en compte par le profil voiture ; l’application vérifie aussi les drapeaux `entry`/`out` des intersections et bloque un tracé si la sortie sélectionnée est déclarée restreinte. Une erreur ou une donnée OSM manquante reste possible.
 - L’état de charge est saisi manuellement et mémorisé dans le navigateur. La synthèse vocale dépend des capacités du navigateur.
 

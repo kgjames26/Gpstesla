@@ -11,3 +11,43 @@
 .safety-alert{position:absolute;z-index:4;top:222px;left:22px;display:none;align-items:center;gap:11px;min-width:235px;padding:11px 13px;border-color:rgba(255,177,68,.42);background:rgba(34,24,11,.89)}.safety-alert.visible{display:flex}.safety-alert-symbol{width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#ffbb4b;color:#291b05;font-weight:800}.safety-alert div{display:flex;flex-direction:column;gap:3px;flex:1}.safety-alert strong{font:9px var(--mono);letter-spacing:.08em;color:#ffd483}.safety-alert small{font-size:11px;color:#fff0d2}.safety-alert>b{font:10px var(--mono);color:#ffd483}
 .speed-readout.over-limit strong,.speed-readout.over-limit>span{color:#ff6b59}.speed-limit strong{color:#ffd27a!important}.app-shell[data-theme="day"]{--bg:#e9eef1;--panel:rgba(249,251,252,.91);--line:rgba(36,56,63,.18);--text:#142126;--muted:#52666c;--accent:#087f69;--accent2:#0b977d;color-scheme:light;background:#e9eef1}.app-shell[data-theme="day"] .topbar,.app-shell[data-theme="day"] .glass{color:#18272c;box-shadow:0 10px 36px rgba(34,57,65,.14),inset 0 1px rgba(255,255,255,.78)}.app-shell[data-theme="day"] .brand span,.app-shell[data-theme="day"] .eyebrow,.app-shell[data-theme="day"] .telemetry-item>span,.app-shell[data-theme="day"] .speed-readout small{color:#53666d}.app-shell[data-theme="day"] .connection,.app-shell[data-theme="day"] .connection b,.app-shell[data-theme="day"] .icon-button,.app-shell[data-theme="day"] .quiet-button,.app-shell[data-theme="day"] .recenter-button{color:#263a40}.app-shell[data-theme="day"] .icon-button{background:rgba(25,48,55,.07)}.app-shell[data-theme="day"] .view-button{color:#4c6066}.app-shell[data-theme="day"] .view-button.active{color:#075a4b;background:rgba(8,127,105,.13)}.app-shell[data-theme="day"] .maplibregl-ctrl-group{background:rgba(249,251,252,.94)!important}.app-shell[data-theme="day"] .maplibregl-ctrl button .maplibregl-ctrl-icon{filter:none}.app-shell[data-theme="day"] .map-vignette{background:linear-gradient(180deg,rgba(255,255,255,.12),transparent 18%,transparent 82%,rgba(230,239,241,.24))}.app-shell[data-theme="day"] .scale-note{color:rgba(20,38,43,.72)}.app-shell[data-theme="day"] .route-panel strong,.app-shell[data-theme="day"] .maneuver-copy strong,.app-shell[data-theme="day"] .telemetry-item strong{color:#142126}.app-shell[data-theme="day"] .maneuver-copy span:last-child,.app-shell[data-theme="day"] .route-foot>span{color:#52666c}.app-shell[data-theme="day"] .settings-overlay,.app-shell[data-theme="day"] .search-overlay{background:rgba(23,38,43,.2)}.app-shell[data-theme="day"] .theme-option{background:rgba(28,48,54,.035)}.app-shell[data-theme="day"] .safety-alert{background:rgba(255,249,235,.96)}.app-shell[data-theme="day"] .safety-alert small{color:#543808}.app-shell[data-theme="day"] .search-field{border-color:rgba(36,56,63,.2);background:rgba(20,40,46,.04)}.app-shell[data-theme="day"] .search-field input,.app-shell[data-theme="day"] .suggestion{color:#16272d}
 @media(max-width:680px){.settings-overlay{padding:73px 10px 12px}.settings-sheet{padding:16px}.safety-alert{left:10px;top:174px;min-width:205px;padding:9px 11px}.safety-alert strong{font-size:8px}.top-actions{gap:4px}.top-actions .icon-button{width:38px;height:38px}.theme-option{padding:10px 8px}}
+
+/* Compact guidance hierarchy keeps the projected vehicle and maneuver cue aligned. */
+.app-shell.nav-guiding .maneuver{top:calc(67% - 145px);left:50%;transform:translateX(-50%);width:min(370px,calc(100vw - 24px));min-height:58px;padding:8px 11px;gap:10px;background:rgba(7,12,14,.88)}
+.app-shell.nav-guiding .maneuver-icon{width:42px;height:42px;border-radius:11px}
+.app-shell.nav-guiding .maneuver-icon svg{width:30px;height:30px}
+.app-shell.nav-guiding .maneuver-copy{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px;row-gap:2px}
+.app-shell.nav-guiding .maneuver-copy .eyebrow{font-size:8px}
+.app-shell.nav-guiding .maneuver-copy strong{font-size:21px}
+.app-shell.nav-guiding .maneuver-copy span:last-child{grid-column:1 / 3;max-width:255px;font-size:10px}
+.app-shell.nav-guiding .lane-mini{display:none}
+.app-shell.nav-guiding .route-foot>span,.app-shell.nav-guiding #start-nav{display:none}
+.stop-button{display:none;border:0;border-radius:8px;padding:9px 11px;background:#f1a17e;color:#26150f;font:9px var(--mono);letter-spacing:.07em}
+.app-shell.nav-guiding .stop-button{display:block}
+.app-shell.nav-guiding .telemetry{left:16px;bottom:16px;min-height:66px;padding:8px 11px;gap:11px}
+.app-shell.nav-guiding .speed-readout{min-width:64px}
+.app-shell.nav-guiding .speed-readout strong{font-size:32px}
+.app-shell.nav-guiding .speed-readout small{display:none}
+.app-shell.nav-guiding .telemetry-item:not(.speed-limit):not(.heading-item){display:none}
+.app-shell.nav-guiding .telemetry-item{gap:0;min-width:auto}
+.app-shell.nav-guiding .telemetry-item>span{font-size:7px}
+.app-shell.nav-guiding .telemetry-item>strong{font-size:13px}
+.app-shell.nav-guiding .speed-limit>span{display:none}
+.app-shell.nav-guiding .speed-limit>strong{font-size:13px}
+.app-shell.nav-guiding .scale-note,.app-shell.nav-guiding .nav-footer{display:none!important}
+.app-shell.nav-guiding .map-controls{right:16px;bottom:16px}
+.app-shell.nav-guiding .map-controls .view-button{padding:9px 10px}
+@media(max-width:680px){
+ .app-shell.nav-guiding .maneuver{top:calc(67% - 132px);min-height:54px;padding:7px 9px;width:min(340px,calc(100vw - 20px))}
+ .app-shell.nav-guiding .maneuver-icon{width:38px;height:38px}
+ .app-shell.nav-guiding .maneuver-copy strong{font-size:19px}
+ .app-shell.nav-guiding .maneuver-copy span:last-child{max-width:220px;font-size:9px}
+ .app-shell.nav-guiding .telemetry{left:10px;bottom:10px;padding:7px 8px;gap:8px;min-height:58px}
+ .app-shell.nav-guiding .map-controls{right:10px;bottom:10px}
+ .app-shell.nav-guiding .map-controls .view-button{padding:8px 7px;font-size:7px}
+ .app-shell.nav-guiding .map-controls>span{margin:0 2px}
+ .app-shell.nav-guiding .route-panel{top:73px;bottom:auto;left:auto;right:10px;width:min(250px,calc(100vw - 20px));padding:10px}
+ .app-shell.nav-guiding .route-stats{margin:9px 0}
+ .app-shell.nav-guiding .route-stats strong{font-size:16px}
+ .app-shell.nav-guiding .stop-button{padding:8px}
+}

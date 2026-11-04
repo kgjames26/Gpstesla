@@ -55,13 +55,13 @@
       <div class="panel-head"><div><span class="eyebrow">TRAJET</span><strong id="route-title">Prêt pour la route</strong></div><button id="close-route" class="quiet-button" aria-label="Effacer le trajet">×</button></div>
       <div class="route-stats"><div><strong id="route-eta">—</strong><span>ARRIVÉE</span></div><div><strong id="route-time">—</strong><span>DURÉE</span></div><div><strong id="route-distance">—</strong><span>DISTANCE</span></div></div>
       <div class="route-progress"><i id="progress-bar"></i></div>
-      <div class="route-foot"><span id="route-status">Aucun itinéraire actif</span><button id="start-nav" class="start-button" disabled>COMMENCER <span>↗</span></button></div>
+      <div class="route-foot"><span id="route-status">Aucun itinéraire actif</span><button id="start-nav" class="start-button" disabled>COMMENCER <span>↗</span></button><button id="end-nav" class="stop-button" aria-label="Terminer le guidage">ARRÊTER</button></div>
     </section>
 
     <section class="telemetry glass">
       <div class="speed-readout"><strong id="speed">0</strong><span>km/h</span><small>VITESSE GPS</small></div>
       <div class="speed-limit telemetry-item"><span>LIMITE OSM</span><strong id="speed-limit">—</strong></div><div class="telemetry-divider"></div>
-      <div class="telemetry-item"><span>CAP</span><strong><i id="heading-arrow">↑</i><b id="heading">—</b></strong></div>
+      <div class="telemetry-item heading-item"><span>CAP</span><strong><i id="heading-arrow">↑</i><b id="heading">—</b></strong></div>
       <div class="telemetry-item"><span>ALTITUDE</span><strong id="altitude">—<small> m</small></strong></div>
       <div class="telemetry-item"><span>PRÉCISION GPS</span><strong id="accuracy">—<small> m</small></strong></div>
       <div class="telemetry-item soc-item"><span>BATTERIE ESTIMÉE</span><strong><input id="soc-input" type="number" min="0" max="100" value="72" aria-label="État de charge estimé en pourcentage"><small>%</small></strong></div>
@@ -87,7 +87,7 @@
     </div>
 
     <div class="toast" id="toast" role="status"></div>
-    <div class="nav-footer" id="nav-footer"><button id="end-nav">TERMINER LE GUIDAGE</button><span id="next-step-short">Suivi GPS actif</span></div>
+    <div class="nav-footer" id="nav-footer" aria-hidden="true"><span id="next-step-short"></span></div>
   </main>
   <script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js" defer></script>
   <script src="/src/safety.js" defer></script>
