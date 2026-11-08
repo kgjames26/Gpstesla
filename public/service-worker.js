@@ -1,5 +1,15 @@
-const CACHE='tesla-gps-shell-v11';
+const CACHE='tesla-gps-clean-v12';
 const SHELL=['/','/index.html','/manifest.json','/src/styles.css','/src/app.js','/icons/tesla-nav.svg'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
-self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin||url.pathname.startsWith('/api/'))return;event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(response=>{if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy))}return response}).catch(()=>caches.match('/index.html'))) )});
+self.addEventListener('fetch',event=>{
+ const req=event.request,url=new URL(req.url);
+ if(req.method!=='GET'||url.origin!==self.location.origin||url.pathname.startsWith('/api/'))return;
+ event.respondWith(fetch(req).then(response=>{
+  if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(req,copy))}
+  return response;
+ }).catch(async()=>{
+  const cache=await caches.open(CACHE);
+  return await cache.match(req)||await cache.match(url.pathname)||await cache.match('/index.html');
+ }));
+});
