@@ -2,6 +2,7 @@ const MAP_STYLE_URL='https://tiles.openfreemap.org/styles/liberty';
 const SATELLITE_TILES='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const speedNode=document.getElementById('speed'),gpsNode=document.getElementById('gps-status'),messageNode=document.getElementById('message');
 let map=null,lastPosition=null,lastHeading=null,displaySpeed=0,watchId=null;
+let radarRefreshTimer=null,lastRadarCell='',lastRadarFetchAt=0,radarFeatures=[];
 function satelliteStyle(osmStyle){
  const style={version:8,glyphs:osmStyle?.glyphs,sources:{imagery:{type:'raster',tiles:[SATELLITE_TILES],tileSize:256,attribution:'Imagerie © Esri'}},layers:[{id:'satellite',type:'raster',source:'imagery',minzoom:0,maxzoom:19}]};
  if(!osmStyle)return style;
@@ -40,10 +41,40 @@ function startGps(){
  if(!('geolocation'in navigator)){setGpsState('error','GPS indisponible');showMessage('Ce navigateur ne donne pas accès au GPS.');return}
  watchId=navigator.geolocation.watchPosition(updatePosition,error=>{setGpsState('error','Signal GPS indisponible');if(error.code===1)showMessage('Autorisez la localisation GPS dans les réglages du navigateur.');else{gpsNode.classList.add('searching');showMessage('Recherche du signal GPS…')}},{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
 }
-async function startMap(){
+async function radarCell(lat,lon){return Math.floor(lat/.05)+':'+Math.floor(lon/.05)}
+function addRadarLayers(){
+ map.addSource('radars',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+ map.addLayer({id:'radar-points',type:'circle',source:'radars',paint:{'circle-radius':['interpolate',['linear'],['zoom'],10,6,15,9,18,12],'circle-color':'#ec4654','circle-stroke-color':'#fff','circle-stroke-width':2,'circle-opacity':.97}});
+ map.addLayer({id:'radar-lenses',type:'circle',source:'radars',paint:{'circle-radius':['interpolate',['linear'],['zoom'],10,1.8,18,3.2],'circle-color':'#351116'}});
+ map.on('mouseenter','radar-points',()=>{map.getCanvas().style.cursor='pointer'});
+ map.on('mouseleave','radar-points',()=>{map.getCanvas().style.cursor=''});
+ map.on('click','radar-points',event=>{
+  const feature=event.features?.[0];if(!feature)return;
+  const tags=feature.properties||{},speed=tags.maxspeed&&tags.maxspeed!=='null'?' · '+tags.maxspeed+' km/h':'';
+  new maplibregl.Popup({closeButton:false,closeOnClick:true,offset:12}).setLngLat(event.lngLat).setText('Radar fixe'+speed+' · OpenStreetMap').addTo(map);
+ });
+}
+async function refreshRadars(){
+ if(!lastPosition||!map)return;
+ const key=radarCell(lastPosition.latitude,lastPosition.longitude),now=Date.now();
+ if(key===lastRadarCell&&now-lastRadarFetchAt<15*60*1000)return;
+ lastRadarCell=key;lastRadarFetchAt=now;
+ try{
+  const query=new URLSearchParams({lat:String(lastPosition.latitude),lon:String(lastPosition.longitude)});
+  const response=await fetch('/api/radars?'+query.toString(),{cache:'no-store'});
+  if(!response.ok)throw new Error('radar feed '+response.status);
+  const result=await response.json();
+  radarFeatures=(result.radars||[]).map(item=>({type:'Feature',id:item.id,geometry:{type:'Point',coordinates:[item.lon,item.lat]},properties:{maxspeed:item.maxspeed||''}}));
+  map.getSource('radars')?.setData({type:'FeatureCollection',features:radarFeatures});
+ }catch(error){console.warn('Mise à jour des radars impossible.',error);lastRadarFetchAt=Date.now()-14*60*1000}
+}
+function scheduleRadarRefresh(){
+ clearTimeout(radarRefreshTimer);radarRefreshTimer=setTimeout(()=>refreshRadars(),900);
+}
+function startMap(){
  let osmStyle=null;try{const response=await fetch(MAP_STYLE_URL,{mode:'cors'});if(response.ok)osmStyle=await response.json()}catch(error){console.warn('Le fond OSM ne peut pas être chargé.',error)}
  map=new maplibregl.Map({container:'map',style:satelliteStyle(osmStyle),center:[4.6,50.55],zoom:16,minZoom:3,maxZoom:19,pitch:0,bearing:0,attributionControl:false,dragRotate:false,keyboard:false,logoPosition:'bottom-right'});
- map.on('error',event=>console.warn('Erreur de carte',event.error));map.once('load',startGps);
+ map.on('error',event=>console.warn('Erreur de carte',event.error));map.once('load',()=>{addRadarLayers();startGps();map.on('moveend',scheduleRadarRefresh);setInterval(refreshRadars,15*60*1000)});
 }
 startMap();window.addEventListener('pagehide',()=>{if(watchId!==null)navigator.geolocation.clearWatch(watchId)});
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js').catch(()=>{}));
