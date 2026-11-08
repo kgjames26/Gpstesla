@@ -17,14 +17,12 @@ module.exports = async function handler(req, res) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 85 || Math.abs(lon) > 180) {
     return reply(res, 400, { error: "invalid_coordinates" });
   }
-
   const cellLat = Math.floor(lat / CELL) * CELL + CELL / 2;
   const cellLon = Math.floor(lon / CELL) * CELL + CELL / 2;
-  const south = (cellLat - CELL / 2).toFixed(3);
-  const west = (cellLon - CELL / 2).toFixed(3);
-  const north = (cellLat + CELL / 2).toFixed(3);
-  const east = (cellLon + CELL / 2).toFixed(3);
-  const query = '[out:json][timeout:10];(node["highway"="speed_camera"](' + south + "," + west + "," + north + "," + east + ');node["man_made"="speed_camera"](' + south + "," + west + "," + north + "," + east + '););out body;';
+  const south = (cellLat - CELL / 2).toFixed(3), west = (cellLon - CELL / 2).toFixed(3);
+  const north = (cellLat + CELL / 2).toFixed(3), east = (cellLon + CELL / 2).toFixed(3);
+  const pointLat = lat.toFixed(3), pointLon = lon.toFixed(3);
+  const query = '[out:json][timeout:10];is_in(' + pointLat + ',' + pointLon + ')->.areas;area.areas["admin_level"="2"]->.country;.country out tags;(node["highway"="speed_camera"](' + south + ',' + west + ',' + north + ',' + east + ');node["man_made"="speed_camera"](' + south + ',' + west + ',' + north + ',' + east + '););out body;';
 
   let lastError = "overpass_unavailable";
   for (const endpoint of UPSTREAMS) {
@@ -33,31 +31,27 @@ module.exports = async function handler(req, res) {
     try {
       const upstream = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-          "User-Agent": "Tesla GPS PWA/2.1 (OpenStreetMap speed camera display)"
-        },
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8", "User-Agent": "Tesla GPS PWA/2.2 (OpenStreetMap radar display)" },
         body: "data=" + encodeURIComponent(query),
         signal: controller.signal
       });
-      if (!upstream.ok) {
-        lastError = "overpass_http_" + upstream.status;
-        continue;
-      }
+      if (!upstream.ok) { lastError = "overpass_http_" + upstream.status; continue; }
       const payload = await upstream.json();
-      const radars = (Array.isArray(payload.elements) ? payload.elements : [])
-        .map(item => {
-          const point = item.type === "node" ? item : item.center;
-          if (!point || !Number.isFinite(point.lat) || !Number.isFinite(point.lon)) return null;
-          return {
-            id: item.type + "/" + item.id,
-            lat: point.lat,
-            lon: point.lon,
-            maxspeed: item.tags && item.tags.maxspeed ? String(item.tags.maxspeed) : null
-          };
-        })
-        .filter(Boolean);
+      const elements = Array.isArray(payload.elements) ? payload.elements : [];
+      const countryArea = elements.find(item => item.type === "area" && item.tags && item.tags.admin_level === "2");
+      const countryCode = countryArea && countryArea.tags
+        ? String(countryArea.tags["ISO3166-1:alpha2"] || countryArea.tags["ISO3166-1"] || "").toUpperCase()
+        : "";
+      const radars = elements.filter(item => item.type === "node" && item.tags &&
+        (item.tags.highway === "speed_camera" || item.tags.man_made === "speed_camera"))
+        .map(item => ({
+          id: "node/" + item.id,
+          lat: item.lat,
+          lon: item.lon,
+          maxspeed: item.tags.maxspeed ? String(item.tags.maxspeed) : null
+        }));
       return reply(res, 200, {
+        countryCode,
         radars,
         updatedAt: new Date().toISOString(),
         osmDataTimestamp: payload.osm3s && payload.osm3s.timestamp_osm_base || null
