@@ -55,7 +55,7 @@ function startGps(){
  if(!('geolocation'in navigator)){setGpsState('error','GPS indisponible');showMessage('Ce navigateur ne donne pas accès au GPS.');return}
  watchId=navigator.geolocation.watchPosition(updatePosition,error=>{setGpsState('error','Signal GPS indisponible');if(error.code===1)showMessage('Autorisez la localisation GPS dans les réglages du navigateur.');else{gpsNode.classList.add('searching');showMessage('Recherche du signal GPS…')}},{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
 }
-async function radarCell(lat,lon){return Math.floor(lat/.05)+':'+Math.floor(lon/.05)}
+function radarCell(lat,lon){return Math.floor(lat/.05)+':'+Math.floor(lon/.05)}
 function addRadarLayers(){
  map.addSource('radars',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
  map.addLayer({id:'radar-points',type:'circle',source:'radars',paint:{'circle-radius':['interpolate',['linear'],['zoom'],10,6,15,9,18,12],'circle-color':'#ec4654','circle-stroke-color':'#fff','circle-stroke-width':2,'circle-opacity':.97}});
@@ -130,7 +130,7 @@ function checkRadarProximity(){
 function scheduleRadarRefresh(){
  clearTimeout(radarRefreshTimer);radarRefreshTimer=setTimeout(()=>refreshRadars(),900);
 }
-function startMap(){
+async function startMap(){
  let osmStyle=null;try{const response=await fetch(MAP_STYLE_URL,{mode:'cors'});if(response.ok)osmStyle=await response.json()}catch(error){console.warn('Le fond OSM ne peut pas être chargé.',error)}
  map=new maplibregl.Map({container:'map',style:satelliteStyle(osmStyle),center:[4.6,50.55],zoom:16,minZoom:3,maxZoom:19,pitch:0,bearing:0,attributionControl:false,dragRotate:false,keyboard:false,logoPosition:'bottom-right'});
  map.on('error',event=>console.warn('Erreur de carte',event.error));map.on('dragstart',()=>{followGps=false;recenterButton.hidden=false});map.once('load',()=>{addRadarLayers();startGps();map.on('moveend',scheduleRadarRefresh);setInterval(refreshRadars,15*60*1000)});
