@@ -68,6 +68,26 @@ function addRadarLayers(){
   new maplibregl.Popup({closeButton:false,closeOnClick:true,offset:12}).setLngLat(event.lngLat).setText('Radar fixe'+speed+' · OpenStreetMap').addTo(map);
  });
 }
+function parseSpeedLimit(value){
+ if(!value)return null;
+ const text=String(value).trim().toLowerCase(),match=text.match(/(\\d+(?:[.,]\\d+)?)/);
+ if(!match)return null;
+ let limit=Number(match[1].replace(',','.'));
+ if(text.includes('mph'))limit*=1.60934;
+ return Number.isFinite(limit)&&limit>0?limit:null;
+}
+function roadLimitForRadar(point,roads){
+ let bestDistance=Infinity,bestLimit=null;
+ for(const road of roads||[]){
+  const coords=road.geometry||[];if(coords.length<2)continue;
+  const rad=value=>value*Math.PI/180,latScale=111320,lonScale=111320*Math.cos(rad(point[1]));
+  for(let i=1;i<coords.length;i++){
+   const a=coords[i-1],b=coords[i],ax=(a[0]-point[0])*lonScale,ay=(a[1]-point[1])*latScale,bx=(b[0]-point[0])*lonScale,by=(b[1]-a[1])*latScale,dx=bx-ax,dy=by-ay,length2=dx*dx+dy*dy,t=length2?Math.max(0,Math.min(1,-(ax*dx+ay*dy)/length2)):0,distance=Math.hypot(ax+t*dx,ay+t*dy),limit=parseSpeedLimit(road.maxspeed);
+   if(distance<bestDistance&&distance<=35&&limit){bestDistance=distance;bestLimit=limit}
+  }
+ }
+ return bestLimit;
+}
 async function refreshRadars(){
  if(!lastPosition||!map)return;
  const key=radarCell(lastPosition.latitude,lastPosition.longitude),now=Date.now();
@@ -79,7 +99,7 @@ async function refreshRadars(){
   if(!response.ok)throw new Error('radar feed '+response.status);
   const result=await response.json();
   radarCountryCode=result.countryCode||'';
-  radarFeatures=radarCountryCode==='BE'?(result.radars||[]).map(item=>({type:'Feature',id:item.id,geometry:{type:'Point',coordinates:[item.lon,item.lat]},properties:{maxspeed:item.maxspeed||'',speedLimit:item.speedLimit}})):[];
+  radarFeatures=radarCountryCode==='BE'?(result.radars||[]).map(item=>{const coordinates=[item.lon,item.lat],speedLimit=parseSpeedLimit(item.maxspeed)||roadLimitForRadar(coordinates,result.roads);return{type:'Feature',id:item.id,geometry:{type:'Point',coordinates},properties:{maxspeed:item.maxspeed||'',speedLimit}}}):[];
   if(radarCountryCode!=='BE')alertedRadars.clear();
   map.getSource('radars')?.setData({type:'FeatureCollection',features:radarFeatures});
   checkRadarProximity();
