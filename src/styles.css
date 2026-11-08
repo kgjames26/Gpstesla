@@ -21,3 +21,5 @@ html,body,.screen,#map{width:100%;height:100%;margin:0;overflow:hidden;backgroun
 .recenter-button{position:absolute;z-index:5;top:max(14px,env(safe-area-inset-top));right:max(92px,calc(env(safe-area-inset-right) + 84px));width:40px;height:40px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.2);border-radius:50%;background:rgba(10,13,16,.8);color:#fff;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);cursor:pointer}
 .recenter-button[hidden]{display:none}
 .recenter-button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+
+.raster-tiles{position:absolute;inset:0;overflow:hidden;pointer-events:none}.raster-tiles img{position:absolute;width:256px;height:256px;max-width:none;user-select:none}.fallback-radars{position:absolute;inset:0;pointer-events:none}.fallback-radar{position:absolute;width:14px;height:14px;transform:translate(-50%,-50%);border:2px solid #fff;border-radius:50%;background:#ec4654;box-shadow:0 0 0 2px rgba(30,8,10,.65)}
