@@ -2,7 +2,14 @@ const MAP_STYLE_URL='https://tiles.openfreemap.org/styles/liberty';
 const SATELLITE_TILES='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const speedNode=document.getElementById('speed'),gpsNode=document.getElementById('gps-status'),messageNode=document.getElementById('message');
 let map=null,lastPosition=null,lastHeading=null,displaySpeed=0,watchId=null;
-let radarRefreshTimer=null,lastRadarCell='',lastRadarFetchAt=0,radarFeatures=[];
+let radarRefreshTimer=null,lastRadarCell='',lastRadarFetchAt=0,radarFeatures=[],radarCountryCode='',audioContext=null,soundEnabled=localStorage.getItem('radar-sound')!=='off';
+const alertedRadars=new Map();
+const soundButton=document.getElementById('sound-toggle');
+function renderSoundButton(){soundButton.classList.toggle('muted',!soundEnabled);soundButton.setAttribute('aria-pressed',String(soundEnabled));soundButton.setAttribute('aria-label',soundEnabled?'Bips radars activés':'Bips radars désactivés')}
+function unlockAudio(){const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;try{audioContext ||= new Audio();if(audioContext.state==='suspended')audioContext.resume()}catch(error){console.warn('Audio indisponible',error)}}
+document.addEventListener('pointerdown',event=>{if(!event.target.closest('#sound-toggle'))unlockAudio()},{passive:true});
+soundButton.addEventListener('click',()=>{if(!audioContext){unlockAudio();return}soundEnabled=!soundEnabled;localStorage.setItem('radar-sound',soundEnabled?'on':'off');renderSoundButton()});
+renderSoundButton();
 function satelliteStyle(osmStyle){
  const style={version:8,glyphs:osmStyle?.glyphs,sources:{imagery:{type:'raster',tiles:[SATELLITE_TILES],tileSize:256,attribution:'Imagerie © Esri'}},layers:[{id:'satellite',type:'raster',source:'imagery',minzoom:0,maxzoom:19}]};
  if(!osmStyle)return style;
@@ -34,7 +41,7 @@ function updatePosition(position){
  if(kmh===null)kmh=0;displaySpeed=displaySpeed*.55+Math.min(260,kmh)*.45;speedNode.textContent=String(Math.round(displaySpeed));
  let bearing=Number.isFinite(heading)&&heading>=0?heading:null;
  if(bearing===null&&lastPosition){const lat1=lastPosition.latitude*Math.PI/180,lat2=latitude*Math.PI/180,dLon=(longitude-lastPosition.longitude)*Math.PI/180,y=Math.sin(dLon)*Math.cos(lat2),x=Math.cos(lat1)*Math.sin(lat2)-Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);bearing=(Math.atan2(y,x)*180/Math.PI+360)%360}
- lastPosition={latitude,longitude,timestamp:position.timestamp};setGpsState('','Signal GPS actif, précision ±'+Math.round(accuracy||0)+' mètres');
+ lastPosition={latitude,longitude,timestamp:position.timestamp};checkRadarProximity();setGpsState('','Signal GPS actif, précision ±'+Math.round(accuracy||0)+' mètres');
  if(map){const targetBearing=smoothBearing(bearing);map.easeTo({center:[longitude,latitude],...(targetBearing!==null?{bearing:targetBearing}:{}),duration:750,essential:true})}
 }
 function startGps(){
@@ -60,13 +67,40 @@ async function refreshRadars(){
  if(key===lastRadarCell&&now-lastRadarFetchAt<15*60*1000)return;
  lastRadarCell=key;lastRadarFetchAt=now;
  try{
-  const query=new URLSearchParams({lat:String(lastPosition.latitude),lon:String(lastPosition.longitude)});
+  const query=new URLSearchParams({lat:lastPosition.latitude.toFixed(3),lon:lastPosition.longitude.toFixed(3)});
   const response=await fetch('/api/radars?'+query.toString(),{cache:'no-store'});
   if(!response.ok)throw new Error('radar feed '+response.status);
   const result=await response.json();
-  radarFeatures=(result.radars||[]).map(item=>({type:'Feature',id:item.id,geometry:{type:'Point',coordinates:[item.lon,item.lat]},properties:{maxspeed:item.maxspeed||''}}));
+  radarCountryCode=result.countryCode||'';
+  radarFeatures=radarCountryCode==='BE'?(result.radars||[]).map(item=>({type:'Feature',id:item.id,geometry:{type:'Point',coordinates:[item.lon,item.lat]},properties:{maxspeed:item.maxspeed||''}})):[];
+  if(radarCountryCode!=='BE')alertedRadars.clear();
   map.getSource('radars')?.setData({type:'FeatureCollection',features:radarFeatures});
+  checkRadarProximity();
  }catch(error){console.warn('Mise à jour des radars impossible.',error);lastRadarFetchAt=Date.now()-14*60*1000}
+}
+function distanceBetween(lat1,lon1,lat2,lon2){
+ const rad=value=>value*Math.PI/180,dLat=rad(lat2-lat1),dLon=rad(lon2-lon1),a=Math.sin(dLat/2)**2+Math.cos(rad(lat1))*Math.cos(rad(lat2))*Math.sin(dLon/2)**2;
+ return 6371000*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function playRadarBeep(){
+ if(!soundEnabled||!audioContext||audioContext.state!=='running')return;
+ try{const oscillator=audioContext.createOscillator(),gain=audioContext.createGain(),now=audioContext.currentTime;oscillator.type='sine';oscillator.frequency.value=880;gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.12,now+.015);gain.gain.exponentialRampToValueAtTime(.0001,now+.18);oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(now);oscillator.stop(now+.19)}catch(error){console.warn('Bip radar impossible',error)}
+}
+function checkRadarProximity(){
+ if(!lastPosition||!radarFeatures.length||radarCountryCode!=='BE')return;
+ const now=Date.now();let nearest=null;
+ for(const radar of radarFeatures){
+  const distance=distanceBetween(lastPosition.latitude,lastPosition.longitude,radar.geometry.coordinates[1],radar.geometry.coordinates[0]);
+  if(distance>1100){alertedRadars.delete(String(radar.id));continue}
+  if(distance<=500&&!alertedRadars.has(String(radar.id))&&(!nearest||distance<nearest.distance))nearest={id:String(radar.id),distance};
+ }
+ if(nearest){
+  for(const radar of radarFeatures){
+   const distance=distanceBetween(lastPosition.latitude,lastPosition.longitude,radar.geometry.coordinates[1],radar.geometry.coordinates[0]);
+   if(distance<=500)alertedRadars.set(String(radar.id),now);
+  }
+  playRadarBeep();
+ }
 }
 function scheduleRadarRefresh(){
  clearTimeout(radarRefreshTimer);radarRefreshTimer=setTimeout(()=>refreshRadars(),900);
