@@ -1,9 +1,1 @@
-{
-  "name": "vector-tesla-navigation",
-  "version": "1.0.0",
-  "private": true,
-  "description": "PWA de navigation GPS 3D pour navigateur embarqué",
-  "scripts": {
-    "build": "node scripts/build.mjs"
-  }
-}
+{"name":"tesla-satellite-gps","version":"2.0.0","private":true,"description":"PWA GPS minimaliste : carte satellite et vitesse en km/h","scripts":{"build":"node scripts/build.mjs"}}
