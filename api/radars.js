@@ -22,7 +22,7 @@ module.exports = async function handler(req, res) {
   const south = (cellLat - CELL / 2).toFixed(3), west = (cellLon - CELL / 2).toFixed(3);
   const north = (cellLat + CELL / 2).toFixed(3), east = (cellLon + CELL / 2).toFixed(3);
   const pointLat = lat.toFixed(3), pointLon = lon.toFixed(3);
-  const query = '[out:json][timeout:10];is_in(' + pointLat + ',' + pointLon + ')->.areas;area.areas["admin_level"="2"]->.country;.country out tags;(node["highway"="speed_camera"](' + south + ',' + west + ',' + north + ',' + east + ');node["man_made"="speed_camera"](' + south + ',' + west + ',' + north + ',' + east + '););out body;';
+  const query = '[out:json][timeout:10];is_in(' + pointLat + ',' + pointLon + ')->.areas;area.areas["admin_level"="2"]->.country;.country out tags;(node["highway"="speed_camera"](' + south + ',' + west + ',' + north + ',' + east + ');node["man_made"="speed_camera"](' + south + ',' + west + ',' + north + ',' + east + ');)->.cameras;way(around.cameras:40)["highway"]["maxspeed"]->.roads;(.cameras;.roads;);out body geom;';
 
   let lastError = "overpass_unavailable";
   for (const endpoint of UPSTREAMS) {
@@ -44,15 +44,14 @@ module.exports = async function handler(req, res) {
         : "";
       const radars = elements.filter(item => item.type === "node" && item.tags &&
         (item.tags.highway === "speed_camera" || item.tags.man_made === "speed_camera"))
-        .map(item => ({
-          id: "node/" + item.id,
-          lat: item.lat,
-          lon: item.lon,
-          maxspeed: item.tags.maxspeed ? String(item.tags.maxspeed) : null
-        }));
+        .map(item => ({ id: "node/" + item.id, lat: item.lat, lon: item.lon, maxspeed: item.tags.maxspeed ? String(item.tags.maxspeed) : null }));
+      const roads = elements.filter(item => item.type === "way" && item.tags && item.tags.highway && item.tags.maxspeed && Array.isArray(item.geometry))
+        .map(item => ({ maxspeed: String(item.tags.maxspeed), geometry: item.geometry.filter(point => Number.isFinite(point.lat) && Number.isFinite(point.lon)).map(point => [point.lon, point.lat]) }))
+        .filter(item => item.geometry.length > 1);
       return reply(res, 200, {
         countryCode,
         radars,
+        roads,
         updatedAt: new Date().toISOString(),
         osmDataTimestamp: payload.osm3s && payload.osm3s.timestamp_osm_base || null
       }, "public, s-maxage=" + CACHE_SECONDS + ", stale-while-revalidate=1800");
