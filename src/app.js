@@ -1,15 +1,16 @@
 const MAP_STYLE_URL='https://tiles.openfreemap.org/styles/liberty';
 const SATELLITE_TILES='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const speedNode=document.getElementById('speed'),gpsNode=document.getElementById('gps-status'),messageNode=document.getElementById('message');
-let map=null,lastPosition=null,lastHeading=null,displaySpeed=0,watchId=null;
+let map=null,lastPosition=null,lastHeading=null,displaySpeed=0,gpsSpeedKmh=0,watchId=null,vehicleMarker=null,followGps=true;
 let radarRefreshTimer=null,lastRadarCell='',lastRadarFetchAt=0,radarFeatures=[],radarCountryCode='',audioContext=null,soundEnabled=localStorage.getItem('radar-sound')!=='off';
 const alertedRadars=new Map();
-const soundButton=document.getElementById('sound-toggle');
+const soundButton=document.getElementById('sound-toggle'),recenterButton=document.getElementById('recenter');
 function renderSoundButton(){soundButton.classList.toggle('muted',!soundEnabled);soundButton.setAttribute('aria-pressed',String(soundEnabled));soundButton.setAttribute('aria-label',soundEnabled?'Bips radars activés':'Bips radars désactivés')}
 function unlockAudio(){const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;try{audioContext ||= new Audio();if(audioContext.state==='suspended')audioContext.resume()}catch(error){console.warn('Audio indisponible',error)}}
 document.addEventListener('pointerdown',event=>{if(!event.target.closest('#sound-toggle'))unlockAudio()},{passive:true});
 soundButton.addEventListener('click',()=>{if(!audioContext){unlockAudio();return}soundEnabled=!soundEnabled;localStorage.setItem('radar-sound',soundEnabled?'on':'off');renderSoundButton()});
 renderSoundButton();
+recenterButton.addEventListener('click',()=>{if(!map||!lastPosition)return;followGps=true;recenterButton.hidden=true;map.easeTo({center:[lastPosition.longitude,lastPosition.latitude],...(lastHeading!==null?{bearing:lastHeading}:{}),duration:650,essential:true})});
 function satelliteStyle(osmStyle){
  const style={version:8,glyphs:osmStyle?.glyphs,sources:{imagery:{type:'raster',tiles:[SATELLITE_TILES],tileSize:256,attribution:'Imagerie © Esri'}},layers:[{id:'satellite',type:'raster',source:'imagery',minzoom:0,maxzoom:19}]};
  if(!osmStyle)return style;
@@ -38,11 +39,17 @@ function smoothBearing(next){
 function updatePosition(position){
  const {latitude,longitude,speed,heading,accuracy}=position.coords;let kmh=Number.isFinite(speed)&&speed>=0?speed*3.6:null;
  if(kmh===null&&lastPosition){const elapsed=(position.timestamp-lastPosition.timestamp)/1000;if(elapsed>.2){const rad=value=>value*Math.PI/180,dLat=rad(latitude-lastPosition.latitude),dLon=rad(longitude-lastPosition.longitude),a=Math.sin(dLat/2)**2+Math.cos(rad(lastPosition.latitude))*Math.cos(rad(latitude))*Math.sin(dLon/2)**2;kmh=2*6371000*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))/elapsed*3.6}}
- if(kmh===null)kmh=0;displaySpeed=displaySpeed*.55+Math.min(260,kmh)*.45;speedNode.textContent=String(Math.round(displaySpeed));
+ if(kmh===null)kmh=0;gpsSpeedKmh=Math.min(260,kmh);displaySpeed=displaySpeed*.55+gpsSpeedKmh*.45;speedNode.textContent=String(Math.round(displaySpeed));
  let bearing=Number.isFinite(heading)&&heading>=0?heading:null;
  if(bearing===null&&lastPosition){const lat1=lastPosition.latitude*Math.PI/180,lat2=latitude*Math.PI/180,dLon=(longitude-lastPosition.longitude)*Math.PI/180,y=Math.sin(dLon)*Math.cos(lat2),x=Math.cos(lat1)*Math.sin(lat2)-Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);bearing=(Math.atan2(y,x)*180/Math.PI+360)%360}
  lastPosition={latitude,longitude,timestamp:position.timestamp};checkRadarProximity();setGpsState('','Signal GPS actif, précision ±'+Math.round(accuracy||0)+' mètres');
- if(map){const targetBearing=smoothBearing(bearing);map.easeTo({center:[longitude,latitude],...(targetBearing!==null?{bearing:targetBearing}:{}),duration:750,essential:true})}
+ if(map){
+  const targetBearing=smoothBearing(bearing),vehicle=document.getElementById('vehicle-marker'),vehicleArt=document.getElementById('vehicle-art');
+  if(!vehicleMarker)vehicleMarker=new maplibregl.Marker({element:vehicle,anchor:'center',rotationAlignment:'viewport'}).setLngLat([longitude,latitude]).addTo(map);
+  else vehicleMarker.setLngLat([longitude,latitude]);
+  if(targetBearing!==null&&vehicleArt)vehicleArt.style.setProperty('--car-angle',(targetBearing-map.getBearing())+'deg');
+  if(followGps){map.easeTo({center:[longitude,latitude],...(targetBearing!==null?{bearing:targetBearing}:{}),duration:vehicleMarker._gpsCentered?700:0,essential:true});vehicleMarker._gpsCentered=true}
+ }
 }
 function startGps(){
  if(!('geolocation'in navigator)){setGpsState('error','GPS indisponible');showMessage('Ce navigateur ne donne pas accès au GPS.');return}
@@ -72,7 +79,7 @@ async function refreshRadars(){
   if(!response.ok)throw new Error('radar feed '+response.status);
   const result=await response.json();
   radarCountryCode=result.countryCode||'';
-  radarFeatures=radarCountryCode==='BE'?(result.radars||[]).map(item=>({type:'Feature',id:item.id,geometry:{type:'Point',coordinates:[item.lon,item.lat]},properties:{maxspeed:item.maxspeed||''}})):[];
+  radarFeatures=radarCountryCode==='BE'?(result.radars||[]).map(item=>({type:'Feature',id:item.id,geometry:{type:'Point',coordinates:[item.lon,item.lat]},properties:{maxspeed:item.maxspeed||'',speedLimit:item.speedLimit}})):[];
   if(radarCountryCode!=='BE')alertedRadars.clear();
   map.getSource('radars')?.setData({type:'FeatureCollection',features:radarFeatures});
   checkRadarProximity();
@@ -108,7 +115,7 @@ function scheduleRadarRefresh(){
 function startMap(){
  let osmStyle=null;try{const response=await fetch(MAP_STYLE_URL,{mode:'cors'});if(response.ok)osmStyle=await response.json()}catch(error){console.warn('Le fond OSM ne peut pas être chargé.',error)}
  map=new maplibregl.Map({container:'map',style:satelliteStyle(osmStyle),center:[4.6,50.55],zoom:16,minZoom:3,maxZoom:19,pitch:0,bearing:0,attributionControl:false,dragRotate:false,keyboard:false,logoPosition:'bottom-right'});
- map.on('error',event=>console.warn('Erreur de carte',event.error));map.once('load',()=>{addRadarLayers();startGps();map.on('moveend',scheduleRadarRefresh);setInterval(refreshRadars,15*60*1000)});
+ map.on('error',event=>console.warn('Erreur de carte',event.error));map.on('dragstart',()=>{followGps=false;recenterButton.hidden=false});map.once('load',()=>{addRadarLayers();startGps();map.on('moveend',scheduleRadarRefresh);setInterval(refreshRadars,15*60*1000)});
 }
 startMap();window.addEventListener('pagehide',()=>{if(watchId!==null)navigator.geolocation.clearWatch(watchId)});
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js').catch(()=>{}));
