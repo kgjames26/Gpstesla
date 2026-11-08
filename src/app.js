@@ -130,10 +130,24 @@ function checkRadarProximity(){
 function scheduleRadarRefresh(){
  clearTimeout(radarRefreshTimer);radarRefreshTimer=setTimeout(()=>refreshRadars(),900);
 }
-async function startMap(){
- let osmStyle=null;try{const response=await fetch(MAP_STYLE_URL,{mode:'cors'});if(response.ok)osmStyle=await response.json()}catch(error){console.warn('Le fond OSM ne peut pas être chargé.',error)}
- map=new maplibregl.Map({container:'map',style:satelliteStyle(osmStyle),center:[4.6,50.55],zoom:16,minZoom:3,maxZoom:19,pitch:0,bearing:0,attributionControl:false,dragRotate:false,keyboard:false,logoPosition:'bottom-right'});
- map.on('error',event=>console.warn('Erreur de carte',event.error));map.on('dragstart',()=>{followGps=false;recenterButton.hidden=false});map.once('load',()=>{addRadarLayers();startGps();map.on('moveend',scheduleRadarRefresh);setInterval(refreshRadars,15*60*1000)});
+function startMap(){
+ let readyOsmStyle=null,osmStyleApplied=false,gpsStarted=false,radarTimerStarted=false;
+ map=new maplibregl.Map({container:'map',style:satelliteStyle(null),center:[4.6,50.55],zoom:16,minZoom:3,maxZoom:19,pitch:0,bearing:0,attributionControl:false,dragRotate:false,keyboard:false,logoPosition:'bottom-right'});
+ map.on('error',event=>console.warn('Erreur de carte',event.error));
+ map.on('dragstart',()=>{followGps=false;recenterButton.hidden=false});
+ map.on('style.load',()=>{
+  if(readyOsmStyle&&!osmStyleApplied){osmStyleApplied=true;map.setStyle(satelliteStyle(readyOsmStyle));return}
+  if(!map.getSource('radars'))addRadarLayers();
+  map.getSource('radars')?.setData({type:'FeatureCollection',features:radarFeatures});
+  if(!gpsStarted){gpsStarted=true;startGps()}
+  if(!radarTimerStarted){radarTimerStarted=true;map.on('moveend',scheduleRadarRefresh);setInterval(refreshRadars,15*60*1000)}
+ });
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),5000);
+ fetch(MAP_STYLE_URL,{mode:'cors',signal:controller.signal})
+  .then(response=>{if(!response.ok)throw new Error('Style OSM indisponible');return response.json()})
+  .then(style=>{readyOsmStyle=style;if(map.isStyleLoaded()&&!osmStyleApplied){osmStyleApplied=true;map.setStyle(satelliteStyle(readyOsmStyle))}})
+  .catch(error=>console.warn('Routes OSM ignorées ; la carte satellite reste active.',error))
+  .finally(()=>clearTimeout(timeout));
 }
 startMap();window.addEventListener('pagehide',()=>{if(watchId!==null)navigator.geolocation.clearWatch(watchId)});
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js').catch(()=>{}));
