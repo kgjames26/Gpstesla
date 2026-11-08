@@ -1,45 +1,29 @@
 <!doctype html>
-<html lang="fr">
-<head>
+<html lang="fr"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#080b0d"><meta name="description" content="Carte satellite GPS minimaliste pour Tesla.">
+<meta name="theme-color" content="#080b0d"><meta name="description" content="GPS satellite Tesla : vitesse, position GPS et alertes radars.">
 <link rel="manifest" href="/manifest.json"><link rel="icon" href="/icons/tesla-nav.svg" type="image/svg+xml">
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css"><link rel="stylesheet" href="/src/styles.css?v=10">
-<title>Tesla GPS</title>
-</head>
-<body>
-<main class="screen"><div id="map" aria-label="Carte satellite GPS"></div><div class="map-shade" aria-hidden="true"></div>
-<div class="vehicle" id="vehicle-marker" aria-hidden="true" style="display:none"><div class="vehicle-art" id="vehicle-art"><svg viewBox="0 0 128 256" role="presentation">
-<defs>
- <linearGradient id="paint-white" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".52" stop-color="#f1f3f5"/><stop offset="1" stop-color="#c7cdd2"/></linearGradient>
- <linearGradient id="roof-glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#263541"/><stop offset=".45" stop-color="#080d12"/><stop offset="1" stop-color="#1c2934"/></linearGradient>
- <linearGradient id="glass-glint" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b8d2e2" stop-opacity=".4"/><stop offset=".34" stop-color="#b8d2e2" stop-opacity=".04"/><stop offset="1" stop-color="#080d12" stop-opacity="0"/></linearGradient>
- <filter id="car-shadow" x="-40%" y="-20%" width="180%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
-</defs>
-<ellipse cx="64" cy="134" rx="46" ry="108" fill="#000" opacity=".48" filter="url(#car-shadow)"/>
-<g fill="#111419">
- <path d="M15 55q-7 0-8 9l-2 26q0 8 8 9l8-1 4-43zM113 55q7 0 8 9l2 26q0 8-8 9l-8-1-4-43z"/>
- <path d="M14 157q-8 0-8 9v25q1 8 8 8l9-2 3-39zm100 0q8 0 8 9v25q-1 8-8 8l-9-2-3-39z"/>
-</g>
-<path d="M64 10c-18 0-29 11-35 31L16 78c-5 15-7 31-7 48v57c0 19 5 34 14 47l9 16c6 9 18 14 32 14s26-5 32-14l9-16c9-13 14-28 14-47v-57c0-17-2-33-7-48L99 41C93 21 82 10 64 10Z" fill="url(#paint-white)" stroke="#fff" stroke-width="2"/>
-<path d="M64 20c-13 0-21 8-26 23l-9 29q35-9 70 0l-9-29C85 28 77 20 64 20Z" fill="url(#paint-white)"/>
-<path d="M31 76q33-9 66 0l8 34q-41-8-82 0z" fill="url(#roof-glass)" stroke="#b2bac0" stroke-width="1.6"/>
-<path d="M31 77q33-9 66 0l8 33q-41-8-82 0z" fill="url(#glass-glint)"/>
-<path d="M24 116q40-8 80 0v52q-40 9-80 0z" fill="url(#roof-glass)" stroke="#aeb7be" stroke-width="1.7"/>
-<path d="M26 118q38-7 76 0v49q-38 8-76 0z" fill="url(#glass-glint)" opacity=".68"/>
-<path d="M25 173q39 8 78 0l-2 23q-1 12-8 20l-8 11H43l-8-11q-7-8-8-20z" fill="url(#roof-glass)" stroke="#b5bdc3" stroke-width="1.6"/>
-<path d="M27 175q37 8 74 0l-2 20q-1 11-8 19l-7 9H44l-7-9q-8-8-9-19z" fill="url(#glass-glint)" opacity=".7"/>
-<path d="M33 229q31 8 62 0l-6 12q-5 8-14 10H53q-9-2-14-10z" fill="url(#paint-white)" stroke="#fdfdfd" stroke-width="1.5"/>
-<path d="M25 73q5-4 10-4l-2 12q-5 1-10 4zm82 0q-5-4-10-4l2 12q5 1 10 4z" fill="#eaf6ff" stroke="#fff" stroke-width="1"/>
-<path d="M24 196q6 4 12 4l4 12q-7 0-14-4zm80 0q-6 4-12 4l-4 12q7 0 14-4z" fill="#f34d56"/>
-<path d="M45 31q19-9 38 0" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.3" stroke-linecap="round"/>
-<path d="M17 104q-3 18-3 31m97-31q3 18 3 31" fill="none" stroke="#aeb6bc" stroke-opacity=".7" stroke-width="1"/>
-<path d="M61 26h6l-3 5z" fill="#9ca4aa"/>
+<link rel="stylesheet" href="/src/styles.css?v=12"><title>Tesla GPS</title>
+</head><body><main class="screen">
+<div id="map" aria-label="Carte satellite GPS"><div id="tiles" aria-hidden="true"></div><div id="radars" aria-hidden="true"></div>
+<div id="vehicle" class="vehicle" aria-label="Tesla Model 3" hidden>
+<svg viewBox="0 0 100 190" role="img" aria-label="Tesla Model 3 blanche, toit noir">
+<defs><linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".45" stop-color="#eef1f4"/><stop offset="1" stop-color="#b9c1c8"/></linearGradient><linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#263441"/><stop offset=".5" stop-color="#050a0e"/><stop offset="1" stop-color="#18232c"/></linearGradient><filter id="shadow" x="-40%" y="-20%" width="180%" height="150%"><feGaussianBlur stdDeviation="3"/></filter></defs>
+<ellipse cx="50" cy="98" rx="34" ry="83" fill="#000" opacity=".6" filter="url(#shadow)"/>
+<g fill="#111419"><path d="M16 38h-5q-4 1-4 6v17q0 4 5 5h7zM84 38h5q4 1 4 6v17q0 4-5 5h-7zM16 127h-5q-4 1-4 6v17q0 4 5 5h7zM84 127h5q4 1 4 6v17q0 4-5 5h-7z"/></g>
+<path d="M50 5C37 5 29 12 25 26L15 55q-6 17-6 37v31q0 22 10 37l8 15q7 11 23 11t23-11l8-15q10-15 10-37V92q0-20-6-37L75 26Q71 5 50 5Z" fill="url(#body)" stroke="#fff" stroke-width="2"/>
+<path d="M29 25q4-14 21-14t21 14l7 20q-28-6-56 0z" fill="url(#body)"/>
+<path d="M22 50q28-7 56 0l6 25q-34-7-68 0z" fill="url(#glass)" stroke="#aeb7bf" stroke-width="1.2"/>
+<path d="M18 80q32-7 64 0v39q-32 7-64 0z" fill="url(#glass)" stroke="#aeb7bf" stroke-width="1.2"/>
+<path d="M20 125q30 7 60 0l-3 19q-1 10-8 18l-6 9H37l-6-9q-7-8-8-18z" fill="url(#glass)" stroke="#aeb7bf" stroke-width="1.2"/>
+<path d="M36 174q14 4 28 0l-3 8q-4 5-11 5t-11-5z" fill="url(#body)" stroke="#fff"/>
+<path d="M21 48l-3 9 5-2 3-8zm58 0 3 9-5-2-3-8z" fill="#f4fbff" stroke="#fff"/><path d="M20 143l7 2 3 9-8-3zm60 0-7 2-3 9 8-3z" fill="#e6535a"/>
+<path d="M37 31q13-6 26 0M50 84v31" fill="none" stroke="#b8c0c6" stroke-opacity=".55" stroke-width="1"/>
 </svg></div></div>
+<div class="map-shade" aria-hidden="true"></div>
 <section class="speed" aria-label="Vitesse GPS"><strong id="speed">0</strong><span>km/h</span></section>
-<div id="gps-status" class="gps-status searching" role="status" aria-label="Recherche du signal GPS"></div>
-<button id="recenter" class="recenter-button" type="button" aria-label="Recentrer sur la position GPS" title="Recentrer sur ma position" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg></button>
-<button id="sound-toggle" class="sound-toggle" type="button" aria-label="Bips radars activés" aria-pressed="true" title="Activer ou couper les bips radars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4z"/><path class="sound-wave" d="M16 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/><path class="sound-slash" d="m16 9 5 6m0-6-5 6"/></svg></button>
-<div class="attribution">Imagerie © Esri · Données © OpenStreetMap</div><div id="message" class="message" hidden></div></main>
-<script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js" defer></script><script src="/src/app.js?v=10" defer></script>
-</body></html>
+<div id="gps-status" class="gps-status searching" role="status" aria-label="Recherche du signal GPS" title="Recherche du signal GPS"></div>
+<button id="recenter" class="recenter" type="button" aria-label="Recentrer sur la position GPS" title="Recentrer" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg></button>
+<button id="sound-toggle" class="sound-toggle" type="button" aria-label="Bips radars activés" aria-pressed="true" title="Activer ou couper les bips radars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4z"/><path class="wave" d="M16 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/><path class="slash" d="m16 9 5 6m0-6-5 6"/></svg></button>
+<div id="message" class="message" hidden></div><div class="attribution">Imagerie © Esri · Données © OpenStreetMap</div>
+</main><script src="/src/app.js?v=12" defer></script></body></html>
