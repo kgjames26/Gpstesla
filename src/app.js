@@ -98,14 +98,12 @@ function checkRadarProximity(){
  const now=Date.now();let nearest=null;
  for(const radar of radarFeatures){
   const distance=distanceBetween(lastPosition.latitude,lastPosition.longitude,radar.geometry.coordinates[1],radar.geometry.coordinates[0]);
-  if(distance>1100){alertedRadars.delete(String(radar.id));continue}
-  if(distance<=500&&!alertedRadars.has(String(radar.id))&&(!nearest||distance<nearest.distance))nearest={id:String(radar.id),distance};
+  if(distance>500){alertedRadars.delete(String(radar.id));continue}
+  const limit=Number(radar.properties?.speedLimit);
+  if(distance<=100&&Number.isFinite(limit)&&gpsSpeedKmh>limit&&!alertedRadars.has(String(radar.id))&&(!nearest||distance<nearest.distance))nearest={id:String(radar.id),distance};
  }
  if(nearest){
-  for(const radar of radarFeatures){
-   const distance=distanceBetween(lastPosition.latitude,lastPosition.longitude,radar.geometry.coordinates[1],radar.geometry.coordinates[0]);
-   if(distance<=500)alertedRadars.set(String(radar.id),now);
-  }
+  alertedRadars.set(nearest.id,now);
   playRadarBeep();
  }
 }
