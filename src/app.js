@@ -45,7 +45,7 @@ function updatePosition(position){
  lastPosition={latitude,longitude,timestamp:position.timestamp};checkRadarProximity();setGpsState('','Signal GPS actif, précision ±'+Math.round(accuracy||0)+' mètres');
  if(map){
   const targetBearing=smoothBearing(bearing),vehicle=document.getElementById('vehicle-marker'),vehicleArt=document.getElementById('vehicle-art');
-  if(!vehicleMarker)vehicleMarker=new maplibregl.Marker({element:vehicle,anchor:'center',rotationAlignment:'viewport'}).setLngLat([longitude,latitude]).addTo(map);
+  if(!vehicleMarker){vehicle.style.display='block';vehicleMarker=new maplibregl.Marker({element:vehicle,anchor:'center',rotationAlignment:'viewport'}).setLngLat([longitude,latitude]).addTo(map)}
   else vehicleMarker.setLngLat([longitude,latitude]);
   if(targetBearing!==null&&vehicleArt)vehicleArt.style.setProperty('--car-angle',(targetBearing-map.getBearing())+'deg');
   if(followGps){map.easeTo({center:[longitude,latitude],...(targetBearing!==null?{bearing:targetBearing}:{}),duration:vehicleMarker._gpsCentered?700:0,essential:true});vehicleMarker._gpsCentered=true}
@@ -64,13 +64,13 @@ function addRadarLayers(){
  map.on('mouseleave','radar-points',()=>{map.getCanvas().style.cursor=''});
  map.on('click','radar-points',event=>{
   const feature=event.features?.[0];if(!feature)return;
-  const tags=feature.properties||{},speed=tags.maxspeed&&tags.maxspeed!=='null'?' · '+tags.maxspeed+' km/h':'';
+  const tags=feature.properties||{},speed=tags.speedLimit?' · '+tags.speedLimit+' km/h':'';
   new maplibregl.Popup({closeButton:false,closeOnClick:true,offset:12}).setLngLat(event.lngLat).setText('Radar fixe'+speed+' · OpenStreetMap').addTo(map);
  });
 }
 function parseSpeedLimit(value){
  if(!value)return null;
- const text=String(value).trim().toLowerCase(),match=text.match(/(\\d+(?:[.,]\\d+)?)/);
+ const text=String(value).trim().toLowerCase(),match=text.match(/(\d+(?:[.,]\d+)?)/);
  if(!match)return null;
  let limit=Number(match[1].replace(',','.'));
  if(text.includes('mph'))limit*=1.60934;
@@ -120,7 +120,7 @@ function checkRadarProximity(){
   const distance=distanceBetween(lastPosition.latitude,lastPosition.longitude,radar.geometry.coordinates[1],radar.geometry.coordinates[0]);
   if(distance>500){alertedRadars.delete(String(radar.id));continue}
   const limit=Number(radar.properties?.speedLimit);
-  if(distance<=100&&Number.isFinite(limit)&&gpsSpeedKmh>limit&&!alertedRadars.has(String(radar.id))&&(!nearest||distance<nearest.distance))nearest={id:String(radar.id),distance};
+  if(distance<=100&&Number.isFinite(limit)&&limit>0&&gpsSpeedKmh>limit&&!alertedRadars.has(String(radar.id))&&(!nearest||distance<nearest.distance))nearest={id:String(radar.id),distance};
  }
  if(nearest){
   alertedRadars.set(nearest.id,now);
