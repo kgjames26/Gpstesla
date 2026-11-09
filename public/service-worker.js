@@ -1,5 +1,5 @@
-const CACHE='tesla-gps-navigation-v38';
-const SHELL=['/','/index.html','/manifest.json','/src/styles.css','/src/app.js','/icons/tesla-nav.svg','/tesla-model3-top.png.b64','/tesla-3d-north.png.b64','/tesla-3d-rear.png.b64'];
+const CACHE='tesla-gps-navigation-v39';
+const SHELL=['/','/index.html','/manifest.json','/src/styles.css','/src/app.js','/icons/tesla-nav.svg'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
