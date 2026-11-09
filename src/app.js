@@ -1,19 +1,60 @@
 const TILE_URL='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const mapEl=document.getElementById('map'),geoLayer=document.getElementById('geo-layer'),tileLayer=document.getElementById('tiles'),radarLayer=document.getElementById('radars'),vehicle=document.getElementById('vehicle');
 const vehicleImage=document.getElementById('vehicle-image'),carArtwork={north:'',rear:''};
-const speedEl=document.getElementById('speed'),gpsEl=document.getElementById('gps-status'),recenter=document.getElementById('recenter'),soundButton=document.getElementById('sound-toggle'),orientationButton=document.getElementById('orientation-toggle'),guidance=document.getElementById('guidance'),form=document.getElementById('navigation'),searchToggle=document.getElementById('search-toggle'),countrySelect=document.getElementById('country-select'),destinationInput=document.getElementById('destination'),submitButton=document.getElementById('route-submit'),suggestions=document.getElementById('suggestions');
-const state={center:[4.6,50.55],zoom:16,position:null,previousPosition:null,lastPosition:null,heading:null,speed:0,follow:true,tilesKey:'',tilesOrigin:null,radars:[],country:'',countryLookupPending:false,countryLookupRetryAt:0,radarCell:'',radarFetchedAt:0,audio:null,beepOn:localStorage.getItem('radar-sound')!=='off',orientation:localStorage.getItem('map-orientation')||'north',destination:null,route:null,steps:[],stepIndex:0,turnReached:false,turnBestDistance:Infinity,navigating:false,offRouteCount:0,searchTimer:null,searchAbort:null,searchPromise:null,searchQuery:'',suggestionResults:[],activeSuggestion:-1,lastGeocodeAt:0,countryPromise:null};
+const speedEl=document.getElementById('speed'),gpsEl=document.getElementById('gps-status'),recenter=document.getElementById('recenter'),soundButton=document.getElementById('sound-toggle'),orientationButton=document.getElementById('orientation-toggle'),guidance=document.getElementById('guidance'),form=document.getElementById('navigation'),searchToggle=document.getElementById('search-toggle'),countryPicker=document.getElementById('country-picker'),countryFlagEl=document.getElementById('country-flag'),countryMenu=document.getElementById('country-menu'),countryFilter=document.getElementById('country-filter'),countryOptions=document.getElementById('country-options'),destinationInput=document.getElementById('destination'),submitButton=document.getElementById('route-submit'),suggestions=document.getElementById('suggestions');
+const state={center:[4.6,50.55],zoom:16,position:null,previousPosition:null,lastPosition:null,heading:null,speed:0,follow:true,tilesKey:'',tilesOrigin:null,radars:[],country:'',countryLookupPending:false,countryLookupRetryAt:0,radarCell:'',radarFetchedAt:0,audio:null,beepOn:localStorage.getItem('radar-sound')!=='off',orientation:localStorage.getItem('map-orientation')||'north',destination:null,route:null,steps:[],stepIndex:0,turnReached:false,turnBestDistance:Infinity,navigating:false,offRouteCount:0,searchTimer:null,searchAbort:null,searchPromise:null,searchQuery:'',suggestionResults:[],activeSuggestion:-1,lastGeocodeAt:0,countryPromise:null,destinationCountry:(localStorage.getItem('destination-country')||'BE').toUpperCase()};
 const COUNTRY_CODES='AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW';
 const countryDisplay=Intl.DisplayNames?new Intl.DisplayNames(['fr'],{type:'region'}):null;
 function countryName(code){try{return countryDisplay?.of(code)||code}catch{return code}}
 function countryFlag(code){return String.fromCodePoint(...code.split('').map(letter=>127397+letter.charCodeAt(0)))}
-function populateCountrySelect(){
- const saved=(localStorage.getItem('destination-country')||'BE').toUpperCase();
- const countries=COUNTRY_CODES.split(' ').map(code=>({code,name:countryName(code)})).sort((a,b)=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'}));
- for(const country of countries){const option=document.createElement('option');option.value=country.code;option.textContent=countryFlag(country.code)+' '+country.name;countrySelect.append(option)}
- countrySelect.value=countries.some(country=>country.code===saved)?saved:'BE'
+const countryEntries=COUNTRY_CODES.split(' ').map(code=>({code,name:countryName(code)})).sort((a,b)=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'}));
+function destinationCountryName(){return countryName(state.destinationCountry)}
+function updateCountryPicker(){
+ countryFlagEl.textContent=countryFlag(state.destinationCountry);
+ countryPicker.setAttribute('aria-label','Pays de destination : '+destinationCountryName());
+ countryPicker.title='Pays de destination : '+destinationCountryName()
 }
-function destinationCountryName(){return countryName(countrySelect.value)}
+function renderCountryOptions(query=''){
+ countryOptions.replaceChildren();
+ const q=query.trim().toLocaleLowerCase('fr');
+ const filtered=countryEntries.filter(country=>!q||country.name.toLocaleLowerCase('fr').includes(q)||country.code.toLowerCase().includes(q));
+ for(const country of filtered){
+  const button=document.createElement('button');
+  button.type='button';button.className='country-option';button.setAttribute('role','option');button.setAttribute('aria-selected',String(country.code===state.destinationCountry));
+  const flag=document.createElement('span');flag.className='country-option-flag';flag.textContent=countryFlag(country.code);flag.setAttribute('aria-hidden','true');
+  const name=document.createElement('span');name.textContent=country.name;
+  button.append(flag,name);button.addEventListener('click',()=>selectDestinationCountry(country.code));countryOptions.append(button)
+ }
+ if(!filtered.length){const empty=document.createElement('div');empty.className='suggestion-note';empty.textContent='Aucun pays trouvé';countryOptions.append(empty)}
+}
+function populateCountryMenu(){
+ if(!countryEntries.some(country=>country.code===state.destinationCountry))state.destinationCountry='BE';
+ updateCountryPicker();
+ renderCountryOptions()
+}
+function selectDestinationCountry(code){
+ if(!countryEntries.some(country=>country.code===code))return;
+ state.destinationCountry=code;
+ localStorage.setItem('destination-country',code);
+ updateCountryPicker();
+ countryMenu.hidden=true;countryPicker.setAttribute('aria-expanded','false');countryFilter.value='';
+ clearTimeout(state.searchTimer);
+ if(state.searchAbort)state.searchAbort.abort();
+ state.searchPromise=null;state.searchQuery='';state.suggestionResults=[];state.activeSuggestion=-1;state.destination=null;
+ destinationInput.value='';destinationInput.placeholder='Adresse ou ville';suggestions.hidden=true;
+ destinationInput.removeAttribute('aria-activedescendant');destinationInput.focus()
+}
+countryPicker.addEventListener('click',()=>{
+ const open=countryMenu.hidden;
+ countryMenu.hidden=!open;
+ countryPicker.setAttribute('aria-expanded',String(open));
+ suggestions.hidden=true;
+ if(open){countryFilter.value='';renderCountryOptions();countryFilter.focus()}
+});
+countryFilter.addEventListener('input',()=>renderCountryOptions(countryFilter.value));
+countryFilter.addEventListener('keydown',event=>{
+ if(event.key==='Escape'){event.preventDefault();countryMenu.hidden=true;countryPicker.setAttribute('aria-expanded','false');countryPicker.focus()}
+});
 const alerted=new Set();
 function mercator(lon,lat,z=state.zoom){const size=256*2**z,phi=Math.max(-85.0511,Math.min(85.0511,lat))*Math.PI/180;return{x:(lon+180)/360*size,y:(.5-Math.log((1+Math.sin(phi))/(1-Math.sin(phi)))/(4*Math.PI))*size}}
 function unproject(x,y,z=state.zoom){const size=256*2**z,n=Math.PI-2*Math.PI*y/size;return[(x/size*360)-180,180/Math.PI*Math.atan(Math.sinh(n))]}
@@ -138,19 +179,38 @@ function updateGuidance(){
 }
 function updatePosition(p){const c=p.coords,now={latitude:c.latitude,longitude:c.longitude,timestamp:p.timestamp,accuracy:c.accuracy||0};let speed=Number.isFinite(c.speed)&&c.speed>=0?c.speed*3.6:null;if(speed===null&&state.lastPosition){const dt=(p.timestamp-state.lastPosition.timestamp)/1000;if(dt>.2)speed=meters(state.lastPosition,now)/dt*3.6}state.speed=Math.min(260,Math.max(0,speed||0));speedEl.textContent=String(Math.round(state.speed));if(Number.isFinite(c.heading)&&c.heading>=0)state.heading=c.heading;else if(state.lastPosition&&meters(state.lastPosition,now)>1)state.heading=bearing(state.lastPosition,now);state.previousPosition=state.position;state.lastPosition=now;state.position=now;if(state.follow)state.center=[now.longitude,now.latitude];setGps('GPS actif · précision ±'+Math.round(now.accuracy)+' m','active');if(state.route&&state.navigating)checkOffRoute();render();updateGuidance();checkRadars();refreshRadars()}
 function startGps(){if(!navigator.geolocation){setGps('GPS indisponible','error');return}navigator.geolocation.watchPosition(updatePosition,error=>{setGps(error.code===1?'Autorisez la localisation dans les réglages du navigateur':'Recherche du signal GPS','error');if(error.code===1)showMessage('Autorisez la localisation dans les réglages du navigateur.');else gpsEl.classList.add('searching')},{enableHighAccuracy:true,maximumAge:1000,timeout:20000})}
+function photonFeatureToResult(feature){
+ const props=feature.properties||{},coords=feature.geometry?.coordinates||[];
+ const lon=Number(coords[0]),lat=Number(coords[1]),code=String(props.countrycode||props.country_code||state.destinationCountry).toUpperCase();
+ if(!Number.isFinite(lon)||!Number.isFinite(lat)||code!==state.destinationCountry)return null;
+ const street=props.street||(props.osm_key==='highway'?props.name:'');
+ const primary=[props.housenumber,street].filter(Boolean).join(' ')||props.name||props.locality||props.city||'';
+ const locality=props.city||props.town||props.village||props.hamlet||props.district||props.locality;
+ const parts=[primary,props.postcode,locality,props.county,props.state,props.country].filter(Boolean);
+ const unique=parts.filter((part,index)=>parts.findIndex(item=>item.toLocaleLowerCase('fr')===part.toLocaleLowerCase('fr'))===index);
+ return{lon,lat,display_name:unique.join(', ')||props.name||props.country||'Adresse',address:{country_code:code.toLowerCase()},properties:props}
+}
 async function geocode(q,signal){
- const countryCode=String(countrySelect.value||'').toUpperCase();
- if(!/^[A-Z]{2}$/.test(countryCode))throw Error('Choisissez le pays de destination.');
- const wait=Math.max(0,1100-(Date.now()-state.lastGeocodeAt));
+ const countryCode=String(state.destinationCountry||'').toUpperCase();
+ const params={q,limit:'7',lang:'fr',countrycode:countryCode};
+ if(state.position&&state.country===countryCode){params.lat=String(state.position.latitude);params.lon=String(state.position.longitude);params.zoom='15';params.location_bias_scale='0.25'}
+ const wait=Math.max(0,800-(Date.now()-state.lastGeocodeAt));
  if(wait)await new Promise(resolve=>setTimeout(resolve,wait));
  if(signal.aborted)throw new DOMException('Recherche annulée','AbortError');
- const url=new URL('/api/search',location.origin);
- url.search=new URLSearchParams({q,countrycodes:countryCode.toLowerCase()});
+ const url=new URL('/api/suggest',location.origin);url.search=new URLSearchParams(params);
  state.lastGeocodeAt=Date.now();
  const response=await fetch(url,{signal});
- if(!response.ok)throw Error('Le service de recherche d’adresses ne répond pas. Réessayez dans un instant.');
+ if(!response.ok)throw Error('Le service de suggestions ne répond pas. Réessayez dans un instant.');
+ const payload=await response.json();
+ return(payload.features||[]).map(photonFeatureToResult).filter(Boolean)
+}
+async function exactAddressSearch(q){
+ const code=String(state.destinationCountry||'').toLowerCase();
+ const url=new URL('/api/search',location.origin);url.search=new URLSearchParams({q,countrycodes:code});
+ const response=await fetch(url);
+ if(!response.ok)throw Error('Recherche d’adresse impossible');
  const results=await response.json();
- return results.filter(item=>String(item.address?.country_code||'').toUpperCase()===countryCode)
+ return results.filter(item=>String(item.address?.country_code||'').toLowerCase()===code)
 }
 function showSuggestionStatus(message){
  suggestions.replaceChildren();
@@ -208,7 +268,7 @@ async function runAddressSearch(q){
   }catch(error){
    if(error.name==='AbortError')return[];
    if(state.searchAbort===controller)state.searchPromise=null;
-   showSuggestionStatus(error.message==='Choisissez le pays de destination.'?'Choisissez un pays dans la liste.':'Aucune réponse du service d’adresses. Vérifiez la connexion puis réessayez.');
+   showSuggestionStatus('Le service de suggestions est indisponible. Vérifiez la connexion puis réessayez.');
    console.warn('Recherche d’adresse impossible',error);
    throw error
   }
@@ -236,15 +296,7 @@ function setSearchExpanded(open){
  else{suggestions.hidden=true;destinationInput.removeAttribute('aria-activedescendant')}
 }
 searchToggle.addEventListener('click',()=>setSearchExpanded(!form.classList.contains('expanded')));
-countrySelect.addEventListener('change',()=>{
- localStorage.setItem('destination-country',countrySelect.value);
- clearTimeout(state.searchTimer);
- if(state.searchAbort)state.searchAbort.abort();
- state.searchPromise=null;state.searchQuery='';state.suggestionResults=[];state.activeSuggestion=-1;state.destination=null;
- destinationInput.value='';destinationInput.placeholder='Adresse ou ville';suggestions.hidden=true;
- destinationInput.removeAttribute('aria-activedescendant');
- destinationInput.focus()
-});
+
 destinationInput.addEventListener('keydown',event=>{
  if(event.key==='Escape'){event.preventDefault();suggestions.hidden=true;setSearchExpanded(false);searchToggle.focus();return}
  if(event.key==='ArrowDown'&&state.suggestionResults.length){event.preventDefault();state.activeSuggestion=Math.min(state.suggestionResults.length-1,state.activeSuggestion+1);updateSuggestionSelection();return}
@@ -264,7 +316,12 @@ async function submitDestination(){
  try{
   const results=await runAddressSearch(q);
   if(destinationInput.value.trim()!==q)return;
-  if(results.length)selectSuggestion(state.activeSuggestion>=0?state.activeSuggestion:0)
+  if(results.length){selectSuggestion(state.activeSuggestion>=0?state.activeSuggestion:0);return}
+  showSuggestionStatus('Recherche précise de l’adresse…');
+  const exact=await exactAddressSearch(q);
+  if(destinationInput.value.trim()!==q)return;
+  if(exact.length){state.suggestionResults=exact;state.activeSuggestion=0;renderSuggestions(exact);selectSuggestion(0)}
+  else showSuggestionStatus('Aucune adresse trouvée. Vérifiez le nom, le numéro et la localité.')
  }catch(error){if(error.name!=='AbortError')showMessage('Recherche de destination indisponible.')}
 }
 async function startRoute(){if(!state.position){showMessage('Attendez le signal GPS avant de lancer le guidage.');return}if(!state.destination){showMessage('Choisissez une destination dans la liste.');return}suggestions.hidden=true;submitButton.disabled=true;submitButton.innerHTML='<span class="spinner"></span>';try{const a=state.position,d=state.destination,url='https://router.project-osrm.org/route/v1/driving/'+a.longitude+','+a.latitude+';'+d.longitude+','+d.latitude+'?overview=full&geometries=geojson&steps=true';const r=await fetch(url);if(!r.ok)throw Error('Route indisponible');const data=await r.json();if(data.code!=='Ok'||!data.routes?.length)throw Error('Aucun trajet trouvé');state.route=data.routes[0];state.steps=state.route.legs.flatMap(leg=>leg.steps||[]);state.stepIndex=Math.min(1,Math.max(0,state.steps.findIndex(s=>s.maneuver?.type!=='depart')));state.navigating=true;state.turnReached=false;state.turnBestDistance=Infinity;state.follow=true;state.offRouteCount=0;state.zoom=16;state.center=[a.longitude,a.latitude];document.getElementById('arrival-card').hidden=false;document.getElementById('arrival-address').textContent=d.name;document.getElementById('arrival-address').title=d.name;form.classList.add('navigating');destinationInput.value='';destinationInput.placeholder='Navigation en cours';submitButton.textContent='Arrêter';submitButton.disabled=false;submitButton.setAttribute('aria-label','Arrêter la navigation');render();updateGuidance();showMessage('Guidage démarré · '+formatDistance(state.route.distance))}catch(error){console.warn('Calcul de trajet impossible',error);showMessage('Impossible de calculer ce trajet. Réessayez.');submitButton.disabled=false;submitButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>'}}
@@ -281,5 +338,5 @@ orientationButton.addEventListener('click',()=>{state.orientation=state.orientat
 soundButton.addEventListener('click',()=>{unlockAudio();state.beepOn=!state.beepOn;localStorage.setItem('radar-sound',state.beepOn?'on':'off');soundButton.classList.toggle('muted',!state.beepOn);soundButton.setAttribute('aria-pressed',String(state.beepOn));soundButton.setAttribute('aria-label',state.beepOn?'Bips radars activés':'Bips radars désactivés');soundButton.title=state.beepOn?'Couper les bips radars':'Activer les bips radars'});
 window.addEventListener('resize',render);window.addEventListener('orientationchange',()=>setTimeout(render,150));
 soundButton.classList.toggle('muted',!state.beepOn);soundButton.setAttribute('aria-pressed',String(state.beepOn));soundButton.title=state.beepOn?'Couper les bips radars':'Activer les bips radars';
-populateCountrySelect();loadCar();render();startGps();refreshRadars();setInterval(refreshRadars,15*60*1000);
+populateCountryMenu();loadCar();render();startGps();refreshRadars();setInterval(refreshRadars,15*60*1000);
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js').catch(()=>{}));
