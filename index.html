@@ -3,13 +3,19 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#080b0d"><meta name="description" content="Navigation GPS satellite pour Tesla : carte, guidage et vitesse.">
 <link rel="manifest" href="/manifest.json"><link rel="icon" href="/icons/tesla-nav.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/src/styles.css?v=18"><title>Tesla GPS</title>
+<link rel="stylesheet" href="/src/styles.css?v=19"><title>Tesla GPS</title>
 </head><body><main class="screen">
 <div id="map" aria-label="Carte satellite">
  <div id="geo-layer"><div id="tiles"></div><svg id="route-layer" aria-label="Tracé de navigation"><path id="route-casing"></path><path id="route-line"></path></svg><div id="radars"></div><div id="vehicle" hidden><img id="vehicle-image" alt="Tesla Model 3 blanche vue du dessus"></div></div>
 </div><div class="map-shade" aria-hidden="true"></div>
 <header class="topline">
  <section class="speed" aria-label="Vitesse GPS"><strong id="speed">0</strong><span>km/h</span></section>
+ <form id="navigation" class="navigation" autocomplete="off" aria-label="Navigation vers une destination">
+ <button id="search-toggle" class="search-toggle" type="button" aria-label="Rechercher une destination" aria-expanded="false" title="Rechercher une destination"><svg class="search-mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.6"/><path d="m16 16 4.5 4.5"/></svg><svg class="close-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+ <input id="destination" type="search" placeholder="Où aller ?" aria-label="Destination" aria-autocomplete="list" aria-controls="suggestions" autocomplete="off">
+ <button id="route-submit" type="submit" aria-label="Calculer l’itinéraire" title="Calculer l’itinéraire"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button>
+ <div id="suggestions" class="suggestions" role="listbox" aria-label="Adresses suggérées" hidden></div>
+</form>
  <section id="guidance" class="guidance" hidden aria-live="polite">
   <div class="turn-icon" id="turn-icon" aria-hidden="true">↑</div>
   <div class="turn-copy"><strong id="turn-text">Continuez</strong><span id="turn-road"></span></div>
@@ -23,12 +29,6 @@
  <button id="sound-toggle" class="icon-button sound" type="button" aria-label="Bips radars activés" aria-pressed="true" title="Couper les bips radars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4z"/><path class="wave" d="M16 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/><path class="slash" d="m16 9 5 6m0-6-5 6"/></svg></button>
 </div>
 <button id="recenter" class="recenter" type="button" aria-label="Recentrer sur la voiture" title="Recentrer sur ma position" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg></button>
-<form id="navigation" class="navigation" autocomplete="off">
- <label class="search-icon" for="destination" aria-hidden="true">⌕</label>
- <input id="destination" type="search" placeholder="Où aller ?" aria-label="Destination" autocomplete="off">
- <button id="route-submit" type="submit" aria-label="Calculer l’itinéraire" title="Calculer l’itinéraire"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button>
- <div id="suggestions" class="suggestions" hidden></div>
-</form>
 <div class="attribution">Imagerie © Esri · Données © OpenStreetMap · Itinéraire OSRM</div>
 <div id="message" class="message" hidden></div>
-</main><script src="/src/app.js?v=18" defer></script></body></html>
+</main><script src="/src/app.js?v=19" defer></script></body></html>
