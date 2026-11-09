@@ -47,20 +47,16 @@ document.addEventListener('pointerdown',unlockAudio,{once:true,passive:true});
 function playBeep(){if(!state.beepOn||!state.audio||state.audio.state!=='running')return;try{const o=state.audio.createOscillator(),g=state.audio.createGain(),t=state.audio.currentTime;o.type='sine';o.frequency.value=880;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.12,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+.2);o.connect(g);g.connect(state.audio.destination);o.start(t);o.stop(t+.21)}catch{}}
 function checkRadars(){if(!state.position||state.country!=='BE')return;for(const radar of state.radars){const id=String(radar.id),d=meters(state.position,{latitude:radar.geometry.coordinates[1],longitude:radar.geometry.coordinates[0]}),limit=Number(radar.speedLimit);if(d>500){alerted.delete(id);continue}if(d<=100&&limit>0&&state.speed>limit&&!alerted.has(id)){alerted.add(id);playBeep()}}}
 async function detectCountryFromPosition(position){
- const url=new URL('https://nominatim.openstreetmap.org/reverse');
- url.search=new URLSearchParams({lat:position.latitude.toFixed(5),lon:position.longitude.toFixed(5),format:'jsonv2',zoom:'3',addressdetails:'1',accept_language:'en'});
- const wait=Math.max(0,1100-(Date.now()-state.lastGeocodeAt));
- if(wait)await new Promise(resolve=>setTimeout(resolve,wait));
- state.lastGeocodeAt=Date.now();
- const response=await fetch(url,{cache:'no-store',headers:{'Accept':'application/json'}});
+ const query=new URLSearchParams({lat:position.latitude.toFixed(5),lon:position.longitude.toFixed(5)});
+ const response=await fetch('/api/country?'+query,{cache:'no-store'});
  if(!response.ok)throw Error('Pays GPS non détecté');
- const result=await response.json(),code=String(result.address?.country_code||'').toUpperCase();
- if(code){state.country=code;render();return code}
+ const result=await response.json(),code=String(result.countryCode||'').toUpperCase();
+ if(/^[A-Z]{2}$/.test(code)){state.country=code;render();return code}
  throw Error('Pays GPS non détecté')
 }
 function ensureCountry(){
  if(state.country)return Promise.resolve(state.country);
- if(!state.position)return Promise.reject(Error('Pays GPS non détecté'));
+ if(!state.position)return Promise.reject(Error('GPS indisponible'));
  if(Date.now()<state.countryLookupRetryAt)return Promise.reject(Error('Pays GPS non détecté'));
  if(state.countryPromise)return state.countryPromise;
  state.countryLookupPending=true;
@@ -158,11 +154,11 @@ async function geocode(q,signal){
  const wait=Math.max(0,1100-(Date.now()-state.lastGeocodeAt));
  if(wait)await new Promise(resolve=>setTimeout(resolve,wait));
  if(signal.aborted)throw new DOMException('Recherche annulée','AbortError');
- const url=new URL('https://nominatim.openstreetmap.org/search');
- url.search=new URLSearchParams({q,format:'jsonv2',limit:'12',addressdetails:'1',accept_language:'fr',countrycodes:allowed.join(',').toLowerCase()});
+ const url=new URL('/api/search',location.origin);
+ url.search=new URLSearchParams({q,countrycodes:allowed.join(',').toLowerCase()});
  state.lastGeocodeAt=Date.now();
- const response=await fetch(url,{signal,headers:{'Accept':'application/json'}});
- if(!response.ok)throw Error('Le service d’adresses est indisponible ('+response.status+').');
+ const response=await fetch(url,{signal});
+ if(!response.ok)throw Error('Le service de recherche d’adresses ne répond pas. Réessayez dans un instant.');
  const results=await response.json(),local=[],nearby=[];
  for(const item of results){
   const code=String(item.address?.country_code||'').toUpperCase();
@@ -227,7 +223,7 @@ async function runAddressSearch(q){
   }catch(error){
    if(error.name==='AbortError')return[];
    if(state.searchAbort===controller)state.searchPromise=null;
-   showSuggestionStatus(error.message==='Pays GPS non détecté'?'Le pays n’a pas été détecté. Autorisez la localisation GPS.':'Recherche impossible. Vérifiez la connexion puis réessayez.');
+   showSuggestionStatus(error.message==='GPS indisponible'?'Attendez le signal GPS pour rechercher une adresse.':error.message==='Pays GPS non détecté'?'Impossible de déterminer le pays de cette position. Réessayez dans quelques instants.':'Recherche impossible. Vérifiez la connexion puis réessayez.');
    console.warn('Recherche d’adresse impossible',error);
    throw error
   }
