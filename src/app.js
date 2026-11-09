@@ -53,6 +53,7 @@ countryPicker.addEventListener('click',()=>{
 });
 countryFilter.addEventListener('input',()=>renderCountryOptions(countryFilter.value));
 countryFilter.addEventListener('keydown',event=>{
+ if(event.key==='Enter'){event.preventDefault();return}
  if(event.key==='Escape'){event.preventDefault();countryMenu.hidden=true;countryPicker.setAttribute('aria-expanded','false');countryPicker.focus()}
 });
 const alerted=new Set();
