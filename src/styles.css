@@ -22,7 +22,7 @@
 .country-menu{position:absolute;z-index:12;top:calc(100% + 8px);left:0;width:min(235px,calc(100vw - 24px));max-height:min(48vh,330px);padding:7px;border:1px solid #ffffff22;border-radius:12px;background:#0c1116f7;box-shadow:0 12px 35px #000a;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .country-menu[hidden]{display:none}
 .country-filter{width:100%;height:31px;margin:0 0 5px;padding:0 8px;border:1px solid #ffffff1c;border-radius:8px;background:#ffffff0b;color:#fff;font:inherit;font-size:11px;outline:none;touch-action:auto}
-.country-filter::placeholder{color:#aebbc1}
+.country-filter::placeholder{color:#aebbc1}.country-menu .country-filter{display:block;flex:none;width:100%;height:31px;margin:0 0 5px;padding:0 8px;border:1px solid #ffffff1c;border-radius:8px;background:#ffffff0b;color:#fff;font:inherit;font-size:11px;outline:none;touch-action:auto}
 .country-options{max-height:min(39vh,275px);overflow:auto;overscroll-behavior:contain;touch-action:pan-y}
 .country-option{display:grid;grid-template-columns:19px 1fr;align-items:center;gap:5px;width:100%;min-height:25px;padding:3px 6px;border:0;border-radius:6px;background:transparent;color:#e7ecef;text-align:left;font-family:inherit;font-size:10px;line-height:1.15;cursor:pointer}
 .country-option:active,.country-option:hover,.country-option[aria-selected=true]{background:#ffffff16}
