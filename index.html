@@ -21,13 +21,19 @@
  <button id="route-submit" type="submit" aria-label="Calculer l’itinéraire" title="Calculer l’itinéraire"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button>
  <div id="suggestions" class="suggestions" role="listbox" aria-label="Adresses suggérées" hidden></div>
 </form>
- <section id="guidance" class="guidance" hidden aria-live="polite">
-  <div class="turn-icon" id="turn-icon" aria-hidden="true">↑</div>
-  <div class="turn-copy"><strong id="turn-text">Continuez</strong><span id="turn-road"></span></div>
-  <span class="turn-distance" id="turn-distance"></span>
-  <span class="route-summary" id="route-summary"></span>
- </section>
 </header>
+<aside id="guidance" class="guidance" hidden aria-live="polite">
+ <div class="guidance-current">
+  <div class="turn-icon" id="turn-icon" aria-hidden="true">↑</div>
+  <div class="guidance-current-copy"><strong id="turn-text">Continuez</strong><span id="turn-road"></span></div>
+  <div class="guidance-current-meta"><span class="turn-distance" id="turn-distance"></span><span class="route-summary" id="route-summary"></span></div>
+ </div>
+ <div id="next-guidance" class="guidance-next" hidden>
+  <div id="next-turn-icon" class="next-turn-icon" aria-hidden="true">↑</div>
+  <div class="guidance-next-copy"><span class="next-label">À SUIVRE</span><strong id="next-turn-text"></strong><span id="next-turn-road"></span></div>
+  <span id="next-turn-distance" class="next-turn-distance"></span>
+ </div>
+</aside>
 <div id="gps-status" class="gps-status searching" role="status" aria-label="Recherche du signal GPS" title="Recherche du signal GPS"></div>
 <div class="map-actions">
  <button id="orientation-toggle" class="icon-button orientation" type="button" aria-label="Orientation : nord en haut" title="Passer au cap du véhicule"><svg viewBox="0 0 32 32" aria-hidden="true"><path class="north-mark" d="M16 3v4m0 18v4M3 16h4m18 0h4"/><path class="direction-mark" d="m16 7 6 15-6-4-6 4z"/></svg><span id="orientation-label">N</span></button>
