@@ -145,6 +145,17 @@ function advanceTurnIfPassed(step){
  const margin=Math.max(14,Math.min(24,accuracy*.8));
  return state.turnReached&&moved>=Math.max(4,accuracy*.3)&&distanceToTarget>=state.turnBestDistance+margin&&headingMatchesStep(step);
 }
+function maneuverIcon(step){
+ const type=step?.maneuver?.type||'',mod=step?.maneuver?.modifier||'';
+ return type==='roundabout'||type==='rotary'?'↻':mod==='uturn'?'↶':mod==='slight left'?'↖':mod==='slight right'?'↗':mod.includes('left')?'↰':mod.includes('right')?'↱':'↑'
+}
+function nextManeuver(){
+ const actionable=new Set(['turn','fork','end of road','on ramp','off ramp','roundabout','rotary','merge','arrive']);
+ for(let i=state.stepIndex+1;i<state.steps.length;i++){
+  if(actionable.has(state.steps[i].maneuver?.type))return state.steps[i]
+ }
+ return null
+}
 function updateGuidance(){
  if(!state.route||!state.steps.length){guidance.hidden=true;return}
  guidance.hidden=false;
@@ -155,6 +166,7 @@ function updateGuidance(){
   document.getElementById('turn-distance').textContent='';
   document.getElementById('route-summary').textContent='';
   document.getElementById('arrival-time').textContent='Vous êtes arrivé';
+  document.getElementById('next-guidance').hidden=true;
   return
  }
  const loc=step.maneuver?.location||step.geometry?.coordinates?.[0]||state.route.geometry.coordinates.at(-1),to={longitude:loc[0],latitude:loc[1]},metersTo=state.position?meters(state.position,to):Number(step.distance)||0;
@@ -165,12 +177,22 @@ function updateGuidance(){
   return updateGuidance()
  }
  const ins=instructionFor(step),mod=step.maneuver?.modifier||'',type=step.maneuver?.type||'';
- document.getElementById('turn-icon').textContent=type==='roundabout'||type==='rotary'?'↻':mod==='uturn'?'↶':mod==='slight left'?'↖':mod==='slight right'?'↗':mod.includes('left')?'↰':mod.includes('right')?'↱':'↑';
+ document.getElementById('turn-icon').textContent=maneuverIcon(step);
  document.getElementById('turn-text').textContent=ins.text;
  document.getElementById('turn-road').textContent=ins.road;
  const targetDistance=state.position?meters(state.position,turnProgressPoint(step)):metersTo;
  const passedPoint=state.turnReached&&targetDistance>state.turnBestDistance+8;
  document.getElementById('turn-distance').textContent=state.navigating?(passedPoint?'Passez le carrefour':'Dans '+formatDistance(metersTo)):formatDistance(state.route.distance);
+ const next=nextManeuver(),nextPanel=document.getElementById('next-guidance');
+ if(!next)nextPanel.hidden=true;
+ else{
+  const nextInstruction=instructionFor(next),nextPoint=turnProgressPoint(next),nextDistance=state.position?meters(state.position,nextPoint):Number(next.distance)||0;
+  document.getElementById('next-turn-icon').textContent=maneuverIcon(next);
+  document.getElementById('next-turn-text').textContent=nextInstruction.text;
+  document.getElementById('next-turn-road').textContent=nextInstruction.road;
+  document.getElementById('next-turn-distance').textContent='Dans '+formatDistance(nextDistance);
+  nextPanel.hidden=false
+ }
  const remaining=metersTo+state.steps.slice(state.stepIndex+1).reduce((sum,x)=>sum+(Number(x.distance)||0),0);
  let secs=remaining/Math.max(state.speed/3.6,9);
  if(!state.navigating)secs=state.route.duration||secs;
