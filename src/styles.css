@@ -17,9 +17,12 @@
 .navigation{position:relative;z-index:7;flex:none;width:46px;height:46px;display:flex;align-items:center;gap:8px;padding:0;border:1px solid #ffffff38;border-radius:15px;background:#090d11e8;box-shadow:0 8px 24px #0005;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);pointer-events:auto;transition:width .2s ease,background .2s ease}
 .search-toggle{flex:none;width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:13px;background:transparent;color:#fff;cursor:pointer}
 .search-toggle svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.search-toggle .close-mark{display:none}
+.country-select{display:none;flex:0 1 128px;width:128px;max-width:34vw;height:36px;padding:0 8px;border:1px solid #ffffff20;border-radius:10px;background:#11181de8;color:#fff;font-family:inherit;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;touch-action:auto}
+.country-select option{background:#101518;color:#fff}
+.navigation.expanded .country-select{display:block}
 .navigation input{display:none;min-width:0;flex:1;height:42px;padding:0 2px;border:0;outline:0;background:transparent;color:#fff;font-family:inherit;font-size:16px;font-weight:500;line-height:1.2;touch-action:auto}.navigation input::placeholder{color:#b8c4ca}.navigation input::-webkit-search-cancel-button{-webkit-appearance:none}
 .navigation #route-submit{display:none;flex:none;min-width:44px;height:44px;padding:0 10px;place-items:center;border:0;border-radius:13px;background:#45d9ff;color:#061217;cursor:pointer}.navigation #route-submit svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.navigation.expanded{width:min(360px,calc(100vw - 220px));padding:0 4px 0 0;border-color:#ffffff2c;border-radius:15px;background:#0a0f13ee}
+.navigation.expanded{width:min(470px,calc(100vw - 220px));padding:0 4px 0 0;border-color:#ffffff2c;border-radius:15px;background:#0a0f13ee}
 .navigation.expanded .search-toggle{background:transparent}
 .navigation.expanded .search-toggle .search-mark{display:none}.navigation.expanded .search-toggle .close-mark{display:block}
 .navigation.expanded input,.navigation.expanded #route-submit{display:flex}
