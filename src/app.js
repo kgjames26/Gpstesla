@@ -81,15 +81,14 @@ function fitRouteToView(){
  if(!coords?.length)return;
  const points=coords.map(coord=>mercator(coord[0],coord[1],0)).filter(point=>Number.isFinite(point.x)&&Number.isFinite(point.y));
  if(!points.length)return;
- let centerX=(Math.min(...points.map(point=>point.x))+Math.max(...points.map(point=>point.x)))/2;
- let centerY=(Math.min(...points.map(point=>point.y))+Math.max(...points.map(point=>point.y)))/2;
  const angle=state.orientation==='heading'&&state.heading!==null?-state.heading*Math.PI/180:0,cos=Math.cos(angle),sin=Math.sin(angle);
- const rotated=points.map(point=>{const x=point.x-centerX,y=point.y-centerY;return{x:centerX+x*cos-y*sin,y:centerY+x*sin+y*cos}});
- const minX=Math.min(...rotated.map(point=>point.x)),maxX=Math.max(...rotated.map(point=>point.x)),minY=Math.min(...rotated.map(point=>point.y)),maxY=Math.max(...rotated.map(point=>point.y));
+ let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+ for(const point of points){const x=point.x*cos-point.y*sin,y=point.x*sin+point.y*cos;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y)}
  const spanX=Math.max(maxX-minX,0.0001),spanY=Math.max(maxY-minY,0.0001),availableWidth=Math.max(120,mapEl.clientWidth-52),availableHeight=Math.max(120,mapEl.clientHeight-250);
  const scale=Math.min(availableWidth/(spanX*256),availableHeight/(spanY*256));
  state.zoom=Math.max(3,Math.min(18,Math.floor(Math.log2(scale))));
- centerX=(minX+maxX)/2;centerY=(minY+maxY)/2;
+ const rotatedCenterX=(minX+maxX)/2,rotatedCenterY=(minY+maxY)/2;
+ const centerX=rotatedCenterX*cos+rotatedCenterY*sin,centerY=-rotatedCenterX*sin+rotatedCenterY*cos;
  state.center=unproject(centerX*256,centerY*256,0);
  state.follow=false;state.routeOverview=true;render()
 }
