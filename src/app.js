@@ -49,6 +49,9 @@ function checkRadars(){if(!state.position||state.country!=='BE')return;for(const
 async function detectCountryFromPosition(position){
  const url=new URL('https://nominatim.openstreetmap.org/reverse');
  url.search=new URLSearchParams({lat:position.latitude.toFixed(5),lon:position.longitude.toFixed(5),format:'jsonv2',zoom:'3',addressdetails:'1',accept_language:'en'});
+ const wait=Math.max(0,1100-(Date.now()-state.lastGeocodeAt));
+ if(wait)await new Promise(resolve=>setTimeout(resolve,wait));
+ state.lastGeocodeAt=Date.now();
  const response=await fetch(url,{cache:'no-store',headers:{'Accept':'application/json'}});
  if(!response.ok)throw Error('Pays GPS non détecté');
  const result=await response.json(),code=String(result.address?.country_code||'').toUpperCase();
@@ -61,7 +64,7 @@ function ensureCountry(){
  if(Date.now()<state.countryLookupRetryAt)return Promise.reject(Error('Pays GPS non détecté'));
  if(state.countryPromise)return state.countryPromise;
  state.countryLookupPending=true;
- state.countryLookupRetryAt=Date.now()+5*60*1000;
+ state.countryLookupRetryAt=Date.now()+30*1000;
  state.countryPromise=detectCountryFromPosition(state.position).finally(()=>{state.countryLookupPending=false;state.countryPromise=null});
  return state.countryPromise
 }
@@ -223,6 +226,7 @@ async function runAddressSearch(q){
    return state.suggestionResults
   }catch(error){
    if(error.name==='AbortError')return[];
+   if(state.searchAbort===controller)state.searchPromise=null;
    showSuggestionStatus(error.message==='Pays GPS non détecté'?'Le pays n’a pas été détecté. Autorisez la localisation GPS.':'Recherche impossible. Vérifiez la connexion puis réessayez.');
    console.warn('Recherche d’adresse impossible',error);
    throw error
@@ -236,6 +240,7 @@ destinationInput.addEventListener('input',()=>{
  state.searchPromise=null;state.searchQuery='';
  state.destination=null;state.suggestionResults=[];state.activeSuggestion=-1;
  const q=destinationInput.value.trim();
+ submitButton.setAttribute('aria-label',q.length>=3?'Valider la destination':'Rechercher une destination');
  if(q.length<3){suggestions.hidden=true;destinationInput.removeAttribute('aria-activedescendant');return}
  showSuggestionStatus('Recherche des adresses…');
  state.searchTimer=setTimeout(()=>runAddressSearch(q).catch(()=>{}),850)
@@ -264,7 +269,7 @@ async function submitDestination(){
  const q=destinationInput.value.trim();
  if(state.destination){startRoute();return}
  if(q.length<3){showSuggestionStatus('Saisissez au moins 3 caractères.');return}
- if(state.suggestionQuery===q&&state.suggestionResults.length){selectSuggestion(state.activeSuggestion>=0?state.activeSuggestion:0);return}
+ if(state.searchQuery===q&&state.suggestionResults.length){selectSuggestion(state.activeSuggestion>=0?state.activeSuggestion:0);return}
  showSuggestionStatus('Recherche des adresses…');
  try{
   const results=await runAddressSearch(q);
