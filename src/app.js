@@ -57,8 +57,8 @@ async function detectCountryFromPosition(position){
 function ensureCountry(){
  if(state.country)return Promise.resolve(state.country);
  if(!state.position)return Promise.reject(Error('GPS indisponible'));
- if(Date.now()<state.countryLookupRetryAt)return Promise.reject(Error('Pays GPS non détecté'));
  if(state.countryPromise)return state.countryPromise;
+ if(Date.now()<state.countryLookupRetryAt)return Promise.reject(Error('Pays GPS non détecté'));
  state.countryLookupPending=true;
  state.countryLookupRetryAt=Date.now()+30*1000;
  state.countryPromise=detectCountryFromPosition(state.position).finally(()=>{state.countryLookupPending=false;state.countryPromise=null});
