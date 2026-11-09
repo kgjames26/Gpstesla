@@ -21,7 +21,7 @@ function continentCodesFor(countryCode,position){
  else if(code==='KZ')group=lon<60?'EU':'AS';
  else if(code==='EG')group=lon>34.5?'AS':'AF';
  else group=Object.keys(CONTINENT_COUNTRIES).find(key=>CONTINENT_COUNTRIES[key].split(' ').includes(code))||null;
- return group?CONTINENT_COUNTRIES[group].split(' '):[code];
+ const codes=group?CONTINENT_COUNTRIES[group].split(' '):[];if(!codes.includes(code))codes.push(code);return codes;
 }
 const alerted=new Set();
 function mercator(lon,lat,z=state.zoom){const size=256*2**z,phi=Math.max(-85.0511,Math.min(85.0511,lat))*Math.PI/180;return{x:(lon+180)/360*size,y:(.5-Math.log((1+Math.sin(phi))/(1-Math.sin(phi)))/(4*Math.PI))*size}}
