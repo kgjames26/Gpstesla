@@ -2,7 +2,7 @@ const TILE_URL='https://server.arcgisonline.com/ArcGIS/rest/services/World_Image
 const mapEl=document.getElementById('map'),geoLayer=document.getElementById('geo-layer'),tileLayer=document.getElementById('tiles'),radarLayer=document.getElementById('radars'),vehicle=document.getElementById('vehicle');
 const vehicleImage=document.getElementById('vehicle-image'),carArtwork={north:'',rear:''};
 const speedEl=document.getElementById('speed'),gpsEl=document.getElementById('gps-status'),recenter=document.getElementById('recenter'),soundButton=document.getElementById('sound-toggle'),orientationButton=document.getElementById('orientation-toggle'),guidance=document.getElementById('guidance'),form=document.getElementById('navigation'),searchToggle=document.getElementById('search-toggle'),destinationInput=document.getElementById('destination'),submitButton=document.getElementById('route-submit'),suggestions=document.getElementById('suggestions');
-const state={center:[4.6,50.55],zoom:16,position:null,previousPosition:null,lastPosition:null,heading:null,speed:0,follow:true,tilesKey:'',tilesOrigin:null,radars:[],country:'',countryLookupPending:false,countryLookupRetryAt:0,radarCell:'',radarFetchedAt:0,audio:null,beepOn:localStorage.getItem('radar-sound')!=='off',orientation:localStorage.getItem('map-orientation')||'north',destination:null,route:null,steps:[],stepIndex:0,turnReached:false,turnBestDistance:Infinity,navigating:false,offRouteCount:0,searchTimer:null,searchAbort:null};
+const state={center:[4.6,50.55],zoom:16,position:null,previousPosition:null,lastPosition:null,heading:null,speed:0,follow:true,tilesKey:'',tilesOrigin:null,radars:[],country:'',countryLookupPending:false,countryLookupRetryAt:0,radarCell:'',radarFetchedAt:0,audio:null,beepOn:localStorage.getItem('radar-sound')!=='off',orientation:localStorage.getItem('map-orientation')||'north',destination:null,route:null,steps:[],stepIndex:0,turnReached:false,turnBestDistance:Infinity,navigating:false,offRouteCount:0,searchTimer:null,searchAbort:null,searchPromise:null,searchQuery:'',suggestionResults:[],activeSuggestion:-1,lastGeocodeAt:0,countryPromise:null};
 const CONTINENT_COUNTRIES={
  EU:'AD AL AT AX BA BE BG BY CH CY CZ DE DK EE ES FI FO FR GB GG GI GR HR HU IE IM IS IT JE LI LT LU LV MC MD ME MK MT NL NO PL PT RO RS SE SI SK SM UA VA XK',
  AS:'AE AF AM AZ BD BH BN BT CN CX GE HK ID IL IN IO IQ IR IR JP JO KG KH KP KR KW KZ LA LB LK MM MN MO MV MY NP OM PH PK PS QA RU SA SG SY TH TJ TM TL TR TW UZ VN YE',
@@ -50,11 +50,22 @@ async function detectCountryFromPosition(position){
  const url=new URL('https://nominatim.openstreetmap.org/reverse');
  url.search=new URLSearchParams({lat:position.latitude.toFixed(5),lon:position.longitude.toFixed(5),format:'jsonv2',zoom:'3',addressdetails:'1',accept_language:'en'});
  const response=await fetch(url,{cache:'no-store',headers:{'Accept':'application/json'}});
- if(!response.ok)throw Error('Country lookup '+response.status);
+ if(!response.ok)throw Error('Pays GPS non détecté');
  const result=await response.json(),code=String(result.address?.country_code||'').toUpperCase();
- if(code){state.country=code;render()}
+ if(code){state.country=code;render();return code}
+ throw Error('Pays GPS non détecté')
 }
-async function refreshRadars(){if(!state.position)return;const now=Date.now(),cell=Math.floor(state.position.latitude/.05)+':'+Math.floor(state.position.longitude/.05);if(cell===state.radarCell&&now-state.radarFetchedAt<15*60*1000)return;state.radarCell=cell;state.radarFetchedAt=now;if(!state.country&&!state.countryLookupPending&&Date.now()>=state.countryLookupRetryAt){state.countryLookupPending=true;state.countryLookupRetryAt=Date.now()+5*60*1000;detectCountryFromPosition(state.position).catch(error=>console.warn('Pays GPS indisponible',error)).finally(()=>{state.countryLookupPending=false})}try{const query=new URLSearchParams({lat:state.position.latitude.toFixed(3),lon:state.position.longitude.toFixed(3)}),response=await fetch('/api/radars?'+query,{cache:'no-store'});if(!response.ok)throw Error('radar '+response.status);const data=await response.json();state.country=data.countryCode||state.country;state.radars=state.country==='BE'?(data.radars||[]).map(item=>{const c=[item.lon,item.lat];return{id:item.id,geometry:{coordinates:c},speedLimit:parseLimit(item.maxspeed)||roadLimit(c,data.roads)}}):[];render();checkRadars()}catch(error){console.warn('Radars indisponibles',error);state.radarFetchedAt=Date.now()-10*60*1000}}
+function ensureCountry(){
+ if(state.country)return Promise.resolve(state.country);
+ if(!state.position)return Promise.reject(Error('Pays GPS non détecté'));
+ if(Date.now()<state.countryLookupRetryAt)return Promise.reject(Error('Pays GPS non détecté'));
+ if(state.countryPromise)return state.countryPromise;
+ state.countryLookupPending=true;
+ state.countryLookupRetryAt=Date.now()+5*60*1000;
+ state.countryPromise=detectCountryFromPosition(state.position).finally(()=>{state.countryLookupPending=false;state.countryPromise=null});
+ return state.countryPromise
+}
+async function refreshRadars(){if(!state.position)return;const now=Date.now(),cell=Math.floor(state.position.latitude/.05)+':'+Math.floor(state.position.longitude/.05);if(cell===state.radarCell&&now-state.radarFetchedAt<15*60*1000)return;state.radarCell=cell;state.radarFetchedAt=now;if(!state.country&&!state.countryLookupPending&&Date.now()>=state.countryLookupRetryAt){state.countryLookupPending=true;state.countryLookupRetryAt=Date.now()+5*60*1000;ensureCountry().catch(error=>console.warn('Pays GPS indisponible',error))}try{const query=new URLSearchParams({lat:state.position.latitude.toFixed(3),lon:state.position.longitude.toFixed(3)}),response=await fetch('/api/radars?'+query,{cache:'no-store'});if(!response.ok)throw Error('radar '+response.status);const data=await response.json();state.country=data.countryCode||state.country;state.radars=state.country==='BE'?(data.radars||[]).map(item=>{const c=[item.lon,item.lat];return{id:item.id,geometry:{coordinates:c},speedLimit:parseLimit(item.maxspeed)||roadLimit(c,data.roads)}}):[];render();checkRadars()}catch(error){console.warn('Radars indisponibles',error);state.radarFetchedAt=Date.now()-10*60*1000}}
 async function loadCar(){try{const [north,rear]=await Promise.all(['/tesla-3d-north.png.b64','/tesla-3d-rear.png.b64'].map(async path=>{const r=await fetch(path);if(!r.ok)throw Error(path+' '+r.status);return'data:image/png;base64,'+(await r.text()).trim()}));carArtwork.north=north;carArtwork.rear=rear;render()}catch(error){console.warn('Images 3D Tesla indisponibles',error)}}
 function instructionFor(step){
  const m=step.maneuver||{},type=m.type||'',mod=m.modifier||'',road=step.name||step.ref||'',left=mod.includes('left'),right=mod.includes('right');
@@ -137,31 +148,130 @@ function updateGuidance(){
 }
 function updatePosition(p){const c=p.coords,now={latitude:c.latitude,longitude:c.longitude,timestamp:p.timestamp,accuracy:c.accuracy||0};let speed=Number.isFinite(c.speed)&&c.speed>=0?c.speed*3.6:null;if(speed===null&&state.lastPosition){const dt=(p.timestamp-state.lastPosition.timestamp)/1000;if(dt>.2)speed=meters(state.lastPosition,now)/dt*3.6}state.speed=Math.min(260,Math.max(0,speed||0));speedEl.textContent=String(Math.round(state.speed));if(Number.isFinite(c.heading)&&c.heading>=0)state.heading=c.heading;else if(state.lastPosition&&meters(state.lastPosition,now)>1)state.heading=bearing(state.lastPosition,now);state.previousPosition=state.position;state.lastPosition=now;state.position=now;if(state.follow)state.center=[now.longitude,now.latitude];setGps('GPS actif · précision ±'+Math.round(now.accuracy)+' m','active');if(state.route&&state.navigating)checkOffRoute();render();updateGuidance();checkRadars();refreshRadars()}
 function startGps(){if(!navigator.geolocation){setGps('GPS indisponible','error');return}navigator.geolocation.watchPosition(updatePosition,error=>{setGps(error.code===1?'Autorisez la localisation dans les réglages du navigateur':'Recherche du signal GPS','error');if(error.code===1)showMessage('Autorisez la localisation dans les réglages du navigateur.');else gpsEl.classList.add('searching')},{enableHighAccuracy:true,maximumAge:1000,timeout:20000})}
-async function geocode(q){
- if(state.searchAbort)state.searchAbort.abort();
- state.searchAbort=new AbortController();
- const countryCode=String(state.country||'').toUpperCase();
- if(!countryCode)return[];
- const allowed=continentCodesFor(countryCode,state.position),allowedSet=new Set(allowed);
+async function geocode(q,signal){
+ const countryCode=String(await ensureCountry()).toUpperCase();
+ const allowed=continentCodesFor(countryCode,state.position);
+ if(!allowed.includes(countryCode))allowed.push(countryCode);
+ const wait=Math.max(0,1100-(Date.now()-state.lastGeocodeAt));
+ if(wait)await new Promise(resolve=>setTimeout(resolve,wait));
+ if(signal.aborted)throw new DOMException('Recherche annulée','AbortError');
  const url=new URL('https://nominatim.openstreetmap.org/search');
- url.search=new URLSearchParams({q,format:'jsonv2',limit:'40',addressdetails:'1',accept_language:'fr',countrycodes:allowed.join(',').toLowerCase()});
- const r=await fetch(url,{signal:state.searchAbort.signal,headers:{'Accept':'application/json'}});
- if(!r.ok)throw Error('Recherche indisponible');
- const results=await r.json(),local=[],nearby=[];
+ url.search=new URLSearchParams({q,format:'jsonv2',limit:'12',addressdetails:'1',accept_language:'fr',countrycodes:allowed.join(',').toLowerCase()});
+ state.lastGeocodeAt=Date.now();
+ const response=await fetch(url,{signal,headers:{'Accept':'application/json'}});
+ if(!response.ok)throw Error('Le service d’adresses est indisponible ('+response.status+').');
+ const results=await response.json(),local=[],nearby=[];
  for(const item of results){
   const code=String(item.address?.country_code||'').toUpperCase();
-  if(!allowedSet.has(code))continue;
+  if(!allowed.includes(code))continue;
   (code===countryCode?local:nearby).push(item)
  }
  return local.concat(nearby)
 }
-function renderSuggestions(results){suggestions.replaceChildren();const unique=[...new Map(results.map(item=>[item.display_name,item])).values()].slice(0,7);for(const item of unique){const b=document.createElement('button');b.type='button';b.className='suggestion';b.textContent=item.display_name;b.addEventListener('click',()=>{suggestions.hidden=true;destinationInput.value=item.display_name;state.destination={longitude:Number(item.lon),latitude:Number(item.lat),name:item.display_name};startRoute()});suggestions.append(b)}suggestions.hidden=unique.length===0}
-destinationInput.addEventListener('input',()=>{clearTimeout(state.searchTimer);state.destination=null;const q=destinationInput.value.trim();if(q.length<3){suggestions.hidden=true;return}state.searchTimer=setTimeout(async()=>{try{if(!state.country){showMessage('Attendez la détection du pays par le GPS.');return}renderSuggestions(await geocode(q))}catch(error){if(error.name!=='AbortError')console.warn(error)}},1000)});
-function setSearchExpanded(open){if(state.navigating)return;form.classList.toggle('expanded',open);searchToggle.setAttribute('aria-expanded',String(open));searchToggle.setAttribute('aria-label',open?'Fermer la recherche de destination':'Rechercher une destination');searchToggle.title=open?'Fermer la recherche':'Rechercher une destination';if(open)destinationInput.focus();else suggestions.hidden=true}
+function showSuggestionStatus(message){
+ suggestions.replaceChildren();
+ const item=document.createElement('div');
+ item.className='suggestion-note';
+ item.setAttribute('role','option');
+ item.setAttribute('aria-disabled','true');
+ item.textContent=message;
+ suggestions.append(item);
+ suggestions.hidden=false;
+ state.suggestionResults=[];
+ state.activeSuggestion=-1
+}
+function renderSuggestions(results){
+ suggestions.replaceChildren();
+ state.suggestionResults=[...new Map(results.map(item=>[item.display_name,item])).values()].slice(0,8);
+ state.activeSuggestion=state.suggestionResults.length?0:-1;
+ if(!state.suggestionResults.length){showSuggestionStatus('Aucune adresse trouvée. Essayez avec la ville ou le code postal.');return}
+ state.suggestionResults.forEach((item,index)=>{
+  const button=document.createElement('button');
+  button.type='button';button.id='suggestion-'+index;button.className='suggestion';button.setAttribute('role','option');button.setAttribute('aria-selected',String(index===state.activeSuggestion));button.textContent=item.display_name;
+  button.addEventListener('click',()=>selectSuggestion(index));
+  suggestions.append(button)
+ });
+ suggestions.hidden=false;
+ destinationInput.setAttribute('aria-activedescendant','suggestion-0')
+}
+function updateSuggestionSelection(){
+ const items=suggestions.querySelectorAll('.suggestion');
+ items.forEach((item,index)=>item.setAttribute('aria-selected',String(index===state.activeSuggestion)));
+ const active=items[state.activeSuggestion];
+ if(active){destinationInput.setAttribute('aria-activedescendant',active.id);active.scrollIntoView({block:'nearest'})}
+}
+function selectSuggestion(index){
+ const item=state.suggestionResults[index];
+ if(!item)return;
+ suggestions.hidden=true;
+ state.destination={longitude:Number(item.lon),latitude:Number(item.lat),name:item.display_name};
+ destinationInput.value=item.display_name;
+ destinationInput.removeAttribute('aria-activedescendant');
+ startRoute()
+}
+async function runAddressSearch(q){
+ if(state.searchPromise&&state.searchQuery===q)return state.searchPromise;
+ if(state.searchAbort)state.searchAbort.abort();
+ const controller=new AbortController();
+ state.searchAbort=controller;
+ state.searchQuery=q;
+ state.searchPromise=(async()=>{
+  try{
+   const results=await geocode(q,controller.signal);
+   if(controller.signal.aborted||destinationInput.value.trim()!==q)return[];
+   renderSuggestions(results);
+   return state.suggestionResults
+  }catch(error){
+   if(error.name==='AbortError')return[];
+   showSuggestionStatus(error.message==='Pays GPS non détecté'?'Le pays n’a pas été détecté. Autorisez la localisation GPS.':'Recherche impossible. Vérifiez la connexion puis réessayez.');
+   console.warn('Recherche d’adresse impossible',error);
+   throw error
+  }
+ })();
+ return state.searchPromise
+}
+destinationInput.addEventListener('input',()=>{
+ clearTimeout(state.searchTimer);
+ if(state.searchAbort)state.searchAbort.abort();
+ state.searchPromise=null;state.searchQuery='';
+ state.destination=null;state.suggestionResults=[];state.activeSuggestion=-1;
+ const q=destinationInput.value.trim();
+ if(q.length<3){suggestions.hidden=true;destinationInput.removeAttribute('aria-activedescendant');return}
+ showSuggestionStatus('Recherche des adresses…');
+ state.searchTimer=setTimeout(()=>runAddressSearch(q).catch(()=>{}),850)
+});
+function setSearchExpanded(open){
+ if(state.navigating)return;
+ form.classList.toggle('expanded',open);
+ searchToggle.setAttribute('aria-expanded',String(open));
+ searchToggle.setAttribute('aria-label',open?'Fermer la recherche de destination':'Rechercher une destination');
+ searchToggle.title=open?'Fermer la recherche':'Rechercher une destination';
+ if(open)destinationInput.focus();
+ else{suggestions.hidden=true;destinationInput.removeAttribute('aria-activedescendant')}
+}
 searchToggle.addEventListener('click',()=>setSearchExpanded(!form.classList.contains('expanded')));
-destinationInput.addEventListener('keydown',e=>{if(e.key==='Escape'){suggestions.hidden=true;setSearchExpanded(false);searchToggle.focus()}});
-document.addEventListener('click',e=>{if(!form.contains(e.target)){suggestions.hidden=true;if(!state.navigating)setSearchExpanded(false)}});
-form.addEventListener('submit',async e=>{e.preventDefault();const q=destinationInput.value.trim();if(state.destination){startRoute();return}if(q.length<3){showMessage('Saisissez une destination.');return}try{if(!state.country){showMessage('Attendez la détection du pays par le GPS.');return}const results=await geocode(q);if(results.length===1){const item=results[0];state.destination={longitude:Number(item.lon),latitude:Number(item.lat),name:item.display_name};startRoute()}else renderSuggestions(results)}catch{showMessage('Recherche de destination indisponible.')}});
+destinationInput.addEventListener('keydown',event=>{
+ if(event.key==='Escape'){event.preventDefault();suggestions.hidden=true;setSearchExpanded(false);searchToggle.focus();return}
+ if(event.key==='ArrowDown'&&state.suggestionResults.length){event.preventDefault();state.activeSuggestion=Math.min(state.suggestionResults.length-1,state.activeSuggestion+1);updateSuggestionSelection();return}
+ if(event.key==='ArrowUp'&&state.suggestionResults.length){event.preventDefault();state.activeSuggestion=Math.max(0,state.activeSuggestion-1);updateSuggestionSelection();return}
+ if(event.key==='Enter'){event.preventDefault();submitDestination()}
+});
+document.addEventListener('click',event=>{
+ if(!form.contains(event.target)){suggestions.hidden=true;if(!state.navigating)setSearchExpanded(false)}
+});
+form.addEventListener('submit',event=>{event.preventDefault();submitDestination()});
+async function submitDestination(){
+ const q=destinationInput.value.trim();
+ if(state.destination){startRoute();return}
+ if(q.length<3){showSuggestionStatus('Saisissez au moins 3 caractères.');return}
+ if(state.suggestionQuery===q&&state.suggestionResults.length){selectSuggestion(state.activeSuggestion>=0?state.activeSuggestion:0);return}
+ showSuggestionStatus('Recherche des adresses…');
+ try{
+  const results=await runAddressSearch(q);
+  if(destinationInput.value.trim()!==q)return;
+  if(results.length)selectSuggestion(state.activeSuggestion>=0?state.activeSuggestion:0)
+ }catch(error){if(error.name!=='AbortError')showMessage('Recherche de destination indisponible.')}
+}
 async function startRoute(){if(!state.position){showMessage('Attendez le signal GPS avant de lancer le guidage.');return}if(!state.destination){showMessage('Choisissez une destination dans la liste.');return}suggestions.hidden=true;submitButton.disabled=true;submitButton.innerHTML='<span class="spinner"></span>';try{const a=state.position,d=state.destination,url='https://router.project-osrm.org/route/v1/driving/'+a.longitude+','+a.latitude+';'+d.longitude+','+d.latitude+'?overview=full&geometries=geojson&steps=true';const r=await fetch(url);if(!r.ok)throw Error('Route indisponible');const data=await r.json();if(data.code!=='Ok'||!data.routes?.length)throw Error('Aucun trajet trouvé');state.route=data.routes[0];state.steps=state.route.legs.flatMap(leg=>leg.steps||[]);state.stepIndex=Math.min(1,Math.max(0,state.steps.findIndex(s=>s.maneuver?.type!=='depart')));state.navigating=true;state.turnReached=false;state.turnBestDistance=Infinity;state.follow=true;state.offRouteCount=0;state.zoom=16;state.center=[a.longitude,a.latitude];document.getElementById('arrival-card').hidden=false;document.getElementById('arrival-address').textContent=d.name;document.getElementById('arrival-address').title=d.name;form.classList.add('navigating');destinationInput.value='';destinationInput.placeholder='Navigation en cours';submitButton.textContent='Arrêter';submitButton.disabled=false;submitButton.setAttribute('aria-label','Arrêter la navigation');render();updateGuidance();showMessage('Guidage démarré · '+formatDistance(state.route.distance))}catch(error){console.warn('Calcul de trajet impossible',error);showMessage('Impossible de calculer ce trajet. Réessayez.');submitButton.disabled=false;submitButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>'}}
 function stopRoute(){state.route=null;state.steps=[];state.stepIndex=0;state.navigating=false;state.turnReached=false;state.turnBestDistance=Infinity;state.destination=null;state.offRouteCount=0;state.follow=true;document.getElementById('arrival-card').hidden=true;form.classList.remove('navigating','expanded');searchToggle.setAttribute('aria-expanded','false');searchToggle.setAttribute('aria-label','Rechercher une destination');destinationInput.placeholder='Où aller ?';submitButton.disabled=false;submitButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>';submitButton.setAttribute('aria-label','Calculer l’itinéraire');guidance.hidden=true;render()}
 submitButton.addEventListener('click',e=>{if(state.navigating){e.preventDefault();stopRoute()}});
