@@ -1,29 +1,34 @@
 <!doctype html>
 <html lang="fr"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#080b0d"><meta name="description" content="GPS satellite Tesla : vitesse, position GPS et alertes radars.">
+<meta name="theme-color" content="#080b0d"><meta name="description" content="Navigation GPS satellite pour Tesla : carte, guidage et vitesse.">
 <link rel="manifest" href="/manifest.json"><link rel="icon" href="/icons/tesla-nav.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/src/styles.css?v=14"><title>Tesla GPS</title>
+<link rel="stylesheet" href="/src/styles.css?v=15"><title>Tesla GPS</title>
 </head><body><main class="screen">
-<div id="map" aria-label="Carte satellite GPS"><div id="tiles" aria-hidden="true"></div><div id="radars" aria-hidden="true"></div>
-<div id="vehicle" class="vehicle" aria-label="Tesla Model 3" hidden>
-<svg viewBox="0 0 100 190" role="img" aria-label="Tesla Model 3 blanche, toit noir">
-<defs><linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".45" stop-color="#eef1f4"/><stop offset="1" stop-color="#b9c1c8"/></linearGradient><linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#263441"/><stop offset=".5" stop-color="#050a0e"/><stop offset="1" stop-color="#18232c"/></linearGradient><filter id="shadow" x="-40%" y="-20%" width="180%" height="150%"><feGaussianBlur stdDeviation="3"/></filter></defs>
-<ellipse cx="50" cy="98" rx="34" ry="83" fill="#000" opacity=".6" filter="url(#shadow)"/>
-<g fill="#111419"><path d="M16 38h-5q-4 1-4 6v17q0 4 5 5h7zM84 38h5q4 1 4 6v17q0 4-5 5h-7zM16 127h-5q-4 1-4 6v17q0 4 5 5h7zM84 127h5q4 1 4 6v17q0 4-5 5h-7z"/></g>
-<path d="M50 5C37 5 29 12 25 26L15 55q-6 17-6 37v31q0 22 10 37l8 15q7 11 23 11t23-11l8-15q10-15 10-37V92q0-20-6-37L75 26Q71 5 50 5Z" fill="url(#body)" stroke="#fff" stroke-width="2"/>
-<path d="M29 25q4-14 21-14t21 14l7 20q-28-6-56 0z" fill="url(#body)"/>
-<path d="M22 50q28-7 56 0l6 25q-34-7-68 0z" fill="url(#glass)" stroke="#aeb7bf" stroke-width="1.2"/>
-<path d="M18 80q32-7 64 0v39q-32 7-64 0z" fill="url(#glass)" stroke="#aeb7bf" stroke-width="1.2"/>
-<path d="M20 125q30 7 60 0l-3 19q-1 10-8 18l-6 9H37l-6-9q-7-8-8-18z" fill="url(#glass)" stroke="#aeb7bf" stroke-width="1.2"/>
-<path d="M36 174q14 4 28 0l-3 8q-4 5-11 5t-11-5z" fill="url(#body)" stroke="#fff"/>
-<path d="M21 48l-3 9 5-2 3-8zm58 0 3 9-5-2-3-8z" fill="#f4fbff" stroke="#fff"/><path d="M20 143l7 2 3 9-8-3zm60 0-7 2-3 9 8-3z" fill="#e6535a"/>
-<path d="M37 31q13-6 26 0M50 84v31" fill="none" stroke="#b8c0c6" stroke-opacity=".55" stroke-width="1"/>
-</svg></div></div>
-<div class="map-shade" aria-hidden="true"></div>
-<section class="speed" aria-label="Vitesse GPS"><strong id="speed">0</strong><span>km/h</span></section>
+<div id="map" aria-label="Carte satellite">
+ <div id="geo-layer"><div id="tiles"></div><svg id="route-layer" aria-label="Tracé de navigation"><path id="route-casing"></path><path id="route-line"></path></svg><div id="radars"></div><div id="vehicle" hidden><img id="vehicle-image" alt="Tesla Model 3 blanche vue du dessus"></div></div>
+</div><div class="map-shade" aria-hidden="true"></div>
+<header class="topline">
+ <section class="speed" aria-label="Vitesse GPS"><strong id="speed">0</strong><span>km/h</span></section>
+ <section id="guidance" class="guidance" hidden aria-live="polite">
+  <div class="turn-icon" id="turn-icon" aria-hidden="true">↑</div>
+  <div class="turn-copy"><strong id="turn-text">Continuez</strong><span id="turn-road"></span></div>
+  <span class="turn-distance" id="turn-distance"></span>
+  <span class="route-summary" id="route-summary"></span>
+ </section>
+</header>
 <div id="gps-status" class="gps-status searching" role="status" aria-label="Recherche du signal GPS" title="Recherche du signal GPS"></div>
-<button id="recenter" class="recenter" type="button" aria-label="Recentrer sur la position GPS" title="Recentrer" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg></button>
-<button id="sound-toggle" class="sound-toggle" type="button" aria-label="Bips radars activés" aria-pressed="true" title="Activer ou couper les bips radars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4z"/><path class="wave" d="M16 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/><path class="slash" d="m16 9 5 6m0-6-5 6"/></svg></button>
-<div id="message" class="message" hidden></div><div class="attribution">Imagerie © Esri · Données © OpenStreetMap</div>
-</main><script src="/src/app.js?v=14" defer></script></body></html>
+<div class="map-actions">
+ <button id="orientation-toggle" class="icon-button orientation" type="button" aria-label="Orientation : nord en haut" title="Passer au cap du véhicule"><svg viewBox="0 0 32 32" aria-hidden="true"><path class="north-mark" d="M16 3v4m0 18v4M3 16h4m18 0h4"/><path class="direction-mark" d="m16 7 6 15-6-4-6 4z"/></svg><span id="orientation-label">N</span></button>
+ <button id="sound-toggle" class="icon-button sound" type="button" aria-label="Bips radars activés" aria-pressed="true" title="Couper les bips radars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4z"/><path class="wave" d="M16 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/><path class="slash" d="m16 9 5 6m0-6-5 6"/></svg></button>
+</div>
+<button id="recenter" class="recenter" type="button" aria-label="Recentrer sur la voiture" title="Recentrer sur ma position" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg></button>
+<form id="navigation" class="navigation" autocomplete="off">
+ <label class="search-icon" for="destination" aria-hidden="true">⌕</label>
+ <input id="destination" type="search" placeholder="Où aller ?" aria-label="Destination" autocomplete="off">
+ <button id="route-submit" type="submit" aria-label="Calculer l’itinéraire" title="Calculer l’itinéraire"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button>
+ <div id="suggestions" class="suggestions" hidden></div>
+</form>
+<div class="attribution">Imagerie © Esri · Données © OpenStreetMap · Itinéraire OSRM</div>
+<div id="message" class="message" hidden></div>
+</main><script src="/src/app.js?v=15" defer></script></body></html>
