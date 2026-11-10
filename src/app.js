@@ -3,7 +3,7 @@ const mapEl=document.getElementById('map'),geoLayer=document.getElementById('geo
 const vehicleImage=document.getElementById('vehicle-image'),carArtwork={north:'',rear:''};
 const speedEl=document.getElementById('speed'),gpsEl=document.getElementById('gps-status'),mapViewToggle=document.getElementById('map-view-toggle'),soundButton=document.getElementById('sound-toggle'),orientationButton=document.getElementById('orientation-toggle'),guidance=document.getElementById('guidance'),form=document.getElementById('navigation'),searchToggle=document.getElementById('search-toggle'),countryPicker=document.getElementById('country-picker'),countryFlagEl=document.getElementById('country-flag'),countryMenu=document.getElementById('country-menu'),countryFilter=document.getElementById('country-filter'),countryOptions=document.getElementById('country-options'),destinationInput=document.getElementById('destination'),submitButton=document.getElementById('route-submit'),suggestions=document.getElementById('suggestions');
 const startupCenter=(()=>{try{const p=JSON.parse(localStorage.getItem('last-gps-position')||'null');if(p&&Date.now()-p.timestamp<12*60*60*1000&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180)return[p.longitude,p.latitude]}catch{}return[4.6,50.55]})();
-const state={center:startupCenter,zoom:16,zoomTarget:null,zoomRaf:0,zoomLastFrame:0,zoomLastRender:0,position:null,previousPosition:null,lastPosition:null,heading:null,speed:0,follow:true,initialCentered:false,lastPositionStoredAt:0,routeOverview:false,tilesKey:'',tilesOrigin:null,radars:[],country:'',countryLookupPending:false,countryLookupRetryAt:0,radarCell:'',radarFetchedAt:0,audio:null,beepOn:localStorage.getItem('radar-sound')!=='off',orientation:localStorage.getItem('map-orientation')||'north',destination:null,route:null,steps:[],stepIndex:0,turnReached:false,turnBestDistance:Infinity,navigating:false,offRouteCount:0,searchTimer:null,searchAbort:null,searchPromise:null,searchQuery:'',suggestionResults:[],activeSuggestion:-1,lastGeocodeAt:0,countryPromise:null,destinationCountry:(localStorage.getItem('destination-country')||'BE').toUpperCase()};
+const state={center:startupCenter,zoom:16,zoomTarget:null,zoomRaf:0,zoomLastFrame:0,zoomLastRender:0,position:null,previousPosition:null,lastPosition:null,heading:null,speed:0,follow:true,initialCentered:false,lastPositionStoredAt:0,tilesKey:'',tilesOrigin:null,radars:[],country:'',countryLookupPending:false,countryLookupRetryAt:0,radarCell:'',radarFetchedAt:0,audio:null,beepOn:localStorage.getItem('radar-sound')!=='off',orientation:localStorage.getItem('map-orientation')||'north',destination:null,route:null,steps:[],stepIndex:0,turnReached:false,turnBestDistance:Infinity,navigating:false,offRouteCount:0,searchTimer:null,searchAbort:null,searchPromise:null,searchQuery:'',suggestionResults:[],activeSuggestion:-1,lastGeocodeAt:0,countryPromise:null,destinationCountry:(localStorage.getItem('destination-country')||'BE').toUpperCase()};
 const COUNTRY_CODES='AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW';
 const countryDisplay=Intl.DisplayNames?new Intl.DisplayNames(['fr'],{type:'region'}):null;
 function countryName(code){try{return countryDisplay?.of(code)||code}catch{return code}}
@@ -64,40 +64,21 @@ function tileUrl(x,y,z){const n=2**z;return TILE_URL.replace('{z}',String(z)).re
 function drawTiles(){const w=mapEl.clientWidth,h=mapEl.clientHeight,tileZoom=Math.max(3,Math.min(19,Math.floor(state.zoom))),tileScale=2**(state.zoom-tileZoom),c=mercator(...state.center,tileZoom),angle=state.orientation==='heading'&&state.heading!==null?-state.heading*Math.PI/180:0,extentW=(Math.abs(w*Math.cos(angle))+Math.abs(h*Math.sin(angle)))/tileScale,extentH=(Math.abs(w*Math.sin(angle))+Math.abs(h*Math.cos(angle)))/tileScale,minX=Math.floor((c.x-extentW/2)/256),maxX=Math.floor((c.x+extentW/2)/256),minY=Math.floor((c.y-extentH/2)/256),maxY=Math.floor((c.y+extentH/2)/256),cols=Math.max(1,maxX-minX+1),rows=Math.max(1,maxY-minY+1),key=[tileZoom,minX,minY,cols,rows].join(':');
  if(key!==state.tilesKey){state.tilesKey=key;state.tilesOrigin=[minX,minY];tileLayer.replaceChildren();const n=2**tileZoom;for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++){if(y<0||y>=n)continue;const img=document.createElement('img');img.alt='';img.draggable=false;img.decoding='async';img.src=tileUrl(x,y,tileZoom);img.style.left=((x-minX)*256)+'px';img.style.top=((y-minY)*256)+'px';tileLayer.append(img)}}
  const o=state.tilesOrigin||[minX,minY];tileLayer.style.transform='translate('+(w/2-(c.x-o[0]*256)*tileScale)+'px,'+(h/2-(c.y-o[1]*256)*tileScale)+'px) scale('+tileScale+')'}
-function zoomForSpeed(speed){const v=Math.max(0,Math.min(260,Number(speed)||0));if(v<20)return 19;if(v<30)return 19+(17.5-19)*(v-20)/10;if(v<70)return 17.5;if(v<=130)return 16.2;return Math.max(14.9,16.2-(v-130)*.01)}
-function updateDynamicZoom(){if(!state.follow||state.routeOverview)return;state.zoomTarget=zoomForSpeed(state.speed);if(!state.zoomRaf){state.zoomLastFrame=0;state.zoomRaf=requestAnimationFrame(animateDynamicZoom)}}
-function animateDynamicZoom(timestamp){state.zoomRaf=0;if(!state.follow||state.routeOverview||state.zoomTarget===null)return;const dt=state.zoomLastFrame?Math.min(100,timestamp-state.zoomLastFrame):16;state.zoomLastFrame=timestamp;const delta=state.zoomTarget-state.zoom;state.zoom=Math.abs(delta)<.012?state.zoomTarget:state.zoom+delta*(1-Math.exp(-dt/650));if(timestamp-state.zoomLastRender>=85||state.zoom===state.zoomTarget){state.zoomLastRender=timestamp;render()}if(state.zoom!==state.zoomTarget)state.zoomRaf=requestAnimationFrame(animateDynamicZoom)}
+function zoomForSpeed(speed){const v=Math.max(0,Math.min(260,Number(speed)||0));if(v<20)return 19;if(v<30)return 19+(17.7-19)*(v-20)/10;if(v<70)return 17.7-(v-30)*(.35/40);if(v<=130)return 17.35-(v-70)*(1.15/60);return Math.max(14.9,16.2-(v-130)*.01)}
+function updateDynamicZoom(){if(!state.follow)return;state.zoomTarget=zoomForSpeed(state.speed);if(!state.zoomRaf){state.zoomLastFrame=0;state.zoomRaf=requestAnimationFrame(animateDynamicZoom)}}
+function animateDynamicZoom(timestamp){state.zoomRaf=0;if(!state.follow||state.zoomTarget===null)return;const dt=state.zoomLastFrame?Math.min(100,timestamp-state.zoomLastFrame):16;state.zoomLastFrame=timestamp;const delta=state.zoomTarget-state.zoom;const step=Math.abs(delta)<.01?delta:Math.max(-dt*.00042,Math.min(dt*.00042,delta*(1-Math.exp(-dt/2200))));state.zoom+=step;if(Math.abs(state.zoomTarget-state.zoom)<.01)state.zoom=state.zoomTarget;if(timestamp-state.zoomLastRender>=60||state.zoom===state.zoomTarget){state.zoomLastRender=timestamp;render()}if(state.zoom!==state.zoomTarget)state.zoomRaf=requestAnimationFrame(animateDynamicZoom)}
 function geoPoint(lon,lat){const p=mercator(lon,lat),c=mercator(...state.center);return{x:mapEl.clientWidth/2+p.x-c.x,y:mapEl.clientHeight/2+p.y-c.y}}
 function placeElement(el,lon,lat){const p=geoPoint(lon,lat);el.style.left=p.x+'px';el.style.top=p.y+'px'}
 function drawRoute(){const casing=document.getElementById('route-casing'),line=document.getElementById('route-line'),svg=document.getElementById('route-layer');if(!state.route){casing.setAttribute('d','');line.setAttribute('d','');return}svg.setAttribute('viewBox','0 0 '+mapEl.clientWidth+' '+mapEl.clientHeight);const d=state.route.geometry.coordinates.map((coord,i)=>{const p=geoPoint(coord[0],coord[1]);return(i?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1)}).join(' ');casing.setAttribute('d',d);line.setAttribute('d',d)}
 function drawOverlays(){const angle=state.orientation==='heading'&&state.heading!==null?-state.heading:0;geoLayer.style.transform='rotate('+angle+'deg)';if(state.position){vehicle.hidden=false;placeElement(vehicle,state.position.longitude,state.position.latitude);vehicle.classList.toggle('heading-view',state.orientation==='heading');vehicle.classList.toggle('north-view',state.orientation==='north');vehicleImage.alt=state.orientation==='heading'?'Tesla Model 3 blanche vue arrière 3D':'Tesla Model 3 blanche vue du dessus';vehicleImage.style.setProperty('--car-rotation',((state.heading||0)+(state.orientation==='north'?90:0))+'deg');const mode=state.orientation==='heading'?'rear':'north',src=carArtwork[mode];if(src&&vehicleImage.dataset.artMode!==mode){vehicleImage.src=src;vehicleImage.dataset.artMode=mode}}else vehicle.hidden=true;radarLayer.replaceChildren();for(const radar of state.radars){const pin=document.createElement('i');pin.className='radar-pin';pin.setAttribute('aria-label','Radar fixe'+(radar.speedLimit?' · '+radar.speedLimit+' km/h':''));placeElement(pin,radar.geometry.coordinates[0],radar.geometry.coordinates[1]);radarLayer.append(pin)}drawRoute()}
 function updateMapViewToggle(){
- const mode=state.routeOverview||!state.follow?'recenter':state.route?'overview':'hidden';
- mapViewToggle.hidden=mode==='hidden';
- mapViewToggle.classList.toggle('recenter-mode',mode==='recenter');
- mapViewToggle.querySelector('.route-overview-mark').hidden=mode!=='overview';
- mapViewToggle.querySelector('.recenter-mark').hidden=mode!=='recenter';
- const label=mode==='overview'?'Afficher tout l’itinéraire':'Recentrer sur la voiture';
- mapViewToggle.setAttribute('aria-label',label);mapViewToggle.title=label
-}
-function fitRouteToView(){
- const coords=state.route?.geometry?.coordinates;
- if(!coords?.length)return;
- const points=coords.map(coord=>mercator(coord[0],coord[1],0)).filter(point=>Number.isFinite(point.x)&&Number.isFinite(point.y));
- if(!points.length)return;
- const angle=state.orientation==='heading'&&state.heading!==null?-state.heading*Math.PI/180:0,cos=Math.cos(angle),sin=Math.sin(angle);
- let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
- for(const point of points){const x=point.x*cos-point.y*sin,y=point.x*sin+point.y*cos;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y)}
- const spanX=Math.max(maxX-minX,0.0001),spanY=Math.max(maxY-minY,0.0001),availableWidth=Math.max(120,mapEl.clientWidth-52),availableHeight=Math.max(120,mapEl.clientHeight-250);
- const scale=Math.min(availableWidth/(spanX*256),availableHeight/(spanY*256));
- state.zoom=Math.max(3,Math.min(18,Math.floor(Math.log2(scale))));
- const rotatedCenterX=(minX+maxX)/2,rotatedCenterY=(minY+maxY)/2;
- const centerX=rotatedCenterX*cos+rotatedCenterY*sin,centerY=-rotatedCenterX*sin+rotatedCenterY*cos;
- state.center=unproject(centerX*256,centerY*256,0);
- state.follow=false;state.routeOverview=true;render()
+ const visible=!state.follow;
+ mapViewToggle.hidden=!visible;
+ mapViewToggle.classList.toggle('recenter-mode',visible);
+ mapViewToggle.setAttribute('aria-label','Recentrer sur la voiture');mapViewToggle.title='Recentrer sur la voiture'
 }
 function returnToVehicle(){
- state.routeOverview=false;state.follow=true;
+ state.follow=true;
  if(state.position){state.center=[state.position.longitude,state.position.latitude];state.zoomTarget=zoomForSpeed(state.speed)}
  updateDynamicZoom();render()
 }
@@ -180,8 +161,19 @@ function advanceTurnIfPassed(step){
  return state.turnReached&&moved>=Math.max(4,accuracy*.3)&&distanceToTarget>=state.turnBestDistance+margin&&headingMatchesStep(step);
 }
 function maneuverIcon(step){
- const type=step?.maneuver?.type||'',mod=step?.maneuver?.modifier||'';
- return type==='roundabout'||type==='rotary'?'↻':mod==='uturn'?'↶':mod==='slight left'?'↖':mod==='slight right'?'↗':mod.includes('left')?'↰':mod.includes('right')?'↱':'↑'
+ const type=step?.maneuver?.type||'',mod=step?.maneuver?.modifier||'',exit=Number(step?.maneuver?.exit)||0;
+ const path=d=>'<path d="'+d+'"/>';let shape='';
+ if(type==='roundabout'||type==='rotary'){shape='<circle cx="12" cy="12" r="7.2"/>'+path('M7 6.8A7.5 7.5 0 0 1 18 7l1.8 2.2M19.8 9.2 16.5 9m3.3.2-.2-3.1')+path('M12 4.8v3.1');if(exit)shape+='<text x="12" y="15" text-anchor="middle" class="maneuver-number">'+exit+'</text>'}
+ else if(type==='off ramp')shape=path('M7 21V4m0 8h7a5 5 0 0 1 5 5v1m-4-4 4 4 4-4');
+ else if(type==='on ramp'||type==='merge')shape=path('M6 21V4m12 17v-5a6 6 0 0 0-6-6H8m3-3-3 3 3 3');
+ else if(type==='fork'){shape=path('M12 21V12m0 0V8a4 4 0 0 0-4-4H5m3-3-3 3 3 3')+path('M12 12V8a4 4 0 0 1 4-4h3m-3-3 3 3-3 3');if(mod.includes('left'))shape=path('M12 21V12m0 0V8a4 4 0 0 0-4-4H5m3-3-3 3 3 3');if(mod.includes('right'))shape=path('M12 21V12m0 0V8a4 4 0 0 1 4-4h3m-3-3 3 3-3 3')}
+ else if(mod==='uturn')shape=path('M6 21V11a6 6 0 0 1 12 0v3m-4-4 4 4 4-4');
+ else if(mod.includes('left')){shape=path('M18 21v-8a5 5 0 0 0-5-5H5m4-4-4 4 4 4');if(mod.startsWith('slight'))shape=path('M18 21v-6a5 5 0 0 0-4-4.9L7 8m4-3-4 3 3 4');if(mod.startsWith('sharp'))shape=path('M18 21V9a4 4 0 0 0-4-4H5m4-4-4 4 4 4')}
+ else if(mod.includes('right')){shape=path('M6 21v-8a5 5 0 0 1 5-5h8m-4-4 4 4-4 4');if(mod.startsWith('slight'))shape=path('M6 21v-6a5 5 0 0 1 4-4.9L17 8m-4-3 4 3-3 4');if(mod.startsWith('sharp'))shape=path('M6 21V9a4 4 0 0 1 4-4h9m-4-4 4 4-4 4')}
+ else if(type==='arrive')shape=path('M6 21V4m0 1h12l-3 4 3 4H6');
+ else if(type==='depart')shape='<circle cx="12" cy="17" r="3"/>'+path('M12 14V4m-4 4 4-4 4 4');
+ else shape=path('M12 21V4m-4 4 4-4 4 4');
+ return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+shape+'</svg>'
 }
 function nextManeuver(){
  const actionable=new Set(['turn','fork','end of road','on ramp','off ramp','roundabout','rotary','merge','arrive']);
@@ -197,7 +189,7 @@ function updateGuidance(){
  if(!step){
   document.getElementById('turn-text').textContent='Vous êtes arrivé';
   document.getElementById('turn-road').textContent=state.destination?.name||'';
-  document.getElementById('turn-distance').textContent='';
+  document.getElementById('turn-distance').textContent='';document.getElementById('approach-progress').hidden=true;
   document.getElementById('route-summary').textContent='';
   document.getElementById('arrival-time').textContent='Vous êtes arrivé';
   document.getElementById('next-guidance').hidden=true;
@@ -211,17 +203,18 @@ function updateGuidance(){
   return updateGuidance()
  }
  const ins=instructionFor(step),mod=step.maneuver?.modifier||'',type=step.maneuver?.type||'';
- document.getElementById('turn-icon').textContent=maneuverIcon(step);
+ document.getElementById('turn-icon').innerHTML=maneuverIcon(step);
  document.getElementById('turn-text').textContent=ins.text;
  document.getElementById('turn-road').textContent=ins.road;
  const targetDistance=state.position?meters(state.position,turnProgressPoint(step)):metersTo;
  const passedPoint=state.turnReached&&targetDistance>state.turnBestDistance+8;
  document.getElementById('turn-distance').textContent=state.navigating?(passedPoint?'Passez le carrefour':'Dans '+formatDistance(metersTo)):formatDistance(state.route.distance);
+ const approach=document.getElementById('approach-progress'),approachFill=document.getElementById('approach-progress-fill'),approachActive=state.navigating&&type!=='arrive'&&metersTo<=50;approach.hidden=!approachActive;if(approachActive){approachFill.style.width=(Math.max(0,Math.min(1,(50-metersTo)/50))*100)+'%';approach.classList.toggle('urgent',metersTo<=20)}
  const next=nextManeuver(),nextPanel=document.getElementById('next-guidance');
  if(!next)nextPanel.hidden=true;
  else{
   const nextInstruction=instructionFor(next),nextPoint=turnProgressPoint(next),nextDistance=state.position?meters(state.position,nextPoint):Number(next.distance)||0;
-  document.getElementById('next-turn-icon').textContent=maneuverIcon(next);
+  document.getElementById('next-turn-icon').innerHTML=maneuverIcon(next);
   document.getElementById('next-turn-text').textContent=nextInstruction.text;
   document.getElementById('next-turn-road').textContent=nextInstruction.road;
   document.getElementById('next-turn-distance').textContent='Dans '+formatDistance(nextDistance);
@@ -382,16 +375,16 @@ async function submitDestination(){
  }catch(error){if(error.name!=='AbortError')showMessage('Recherche de destination indisponible.')}
 }
 function routeHasForbiddenTurn(route){return(route.legs||[]).some(leg=>(leg.steps||[]).some(step=>(step.intersections||[]).some(intersection=>Number.isInteger(intersection.out)&&Array.isArray(intersection.entry)&&intersection.entry[intersection.out]===false)))}
-async function startRoute(){if(!state.position){showMessage('Attendez le signal GPS avant de lancer le guidage.');return}if(!state.destination){showMessage('Choisissez une destination dans la liste.');return}suggestions.hidden=true;submitButton.disabled=true;submitButton.innerHTML='<span class="spinner"></span>';try{const a=state.position,d=state.destination,r=await fetch('/api/route',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({start:{latitude:a.latitude,longitude:a.longitude},destination:{latitude:d.latitude,longitude:d.longitude}})});if(!r.ok)throw Error('Route indisponible');const data=await r.json();if(data.code!=='Ok'||!data.routes?.length)throw Error('Aucun trajet trouvé');const safeRoute=data.routes.find(route=>!routeHasForbiddenTurn(route));if(!safeRoute)throw Error('Aucun itinéraire ne respecte les restrictions de circulation cartographiées.');state.route=safeRoute;state.steps=state.route.legs.flatMap(leg=>leg.steps||[]);state.stepIndex=Math.min(1,Math.max(0,state.steps.findIndex(s=>s.maneuver?.type!=='depart')));state.navigating=true;state.turnReached=false;state.turnBestDistance=Infinity;state.follow=true;state.routeOverview=false;state.offRouteCount=0;state.zoomTarget=zoomForSpeed(state.speed);state.center=[a.longitude,a.latitude];updateDynamicZoom();document.getElementById('arrival-card').hidden=false;document.getElementById('arrival-address').textContent=d.name;document.getElementById('arrival-address').title=d.name;form.classList.add('navigating');destinationInput.value='';destinationInput.placeholder='Navigation en cours';submitButton.textContent='Arrêter';submitButton.disabled=false;submitButton.setAttribute('aria-label','Arrêter la navigation');render();updateGuidance()}catch(error){console.warn('Calcul de trajet impossible',error);showMessage(error.message==='Aucun itinéraire ne respecte les restrictions de circulation cartographiées.'?error.message:'Impossible de calculer ce trajet. Réessayez.');submitButton.disabled=false;submitButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>'}}
-function stopRoute(){state.route=null;state.steps=[];state.stepIndex=0;state.navigating=false;state.turnReached=false;state.turnBestDistance=Infinity;state.destination=null;state.offRouteCount=0;state.follow=true;state.routeOverview=false;document.getElementById('arrival-card').hidden=true;form.classList.remove('navigating','expanded');searchToggle.setAttribute('aria-expanded','false');searchToggle.setAttribute('aria-label','Rechercher une destination');destinationInput.placeholder='Où aller ?';submitButton.disabled=false;submitButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>';submitButton.setAttribute('aria-label','Calculer l’itinéraire');guidance.hidden=true;render()}
+async function startRoute(){if(!state.position){showMessage('Attendez le signal GPS avant de lancer le guidage.');return}if(!state.destination){showMessage('Choisissez une destination dans la liste.');return}suggestions.hidden=true;submitButton.disabled=true;submitButton.innerHTML='<span class="spinner"></span>';try{const a=state.position,d=state.destination,r=await fetch('/api/route',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({start:{latitude:a.latitude,longitude:a.longitude},destination:{latitude:d.latitude,longitude:d.longitude}})});if(!r.ok)throw Error('Route indisponible');const data=await r.json();if(data.code!=='Ok'||!data.routes?.length)throw Error('Aucun trajet trouvé');const safeRoute=data.routes.find(route=>!routeHasForbiddenTurn(route));if(!safeRoute)throw Error('Aucun itinéraire ne respecte les restrictions de circulation cartographiées.');state.route=safeRoute;state.steps=state.route.legs.flatMap(leg=>leg.steps||[]);state.stepIndex=Math.min(1,Math.max(0,state.steps.findIndex(s=>s.maneuver?.type!=='depart')));state.navigating=true;state.turnReached=false;state.turnBestDistance=Infinity;state.follow=true;state.offRouteCount=0;state.zoomTarget=zoomForSpeed(state.speed);state.center=[a.longitude,a.latitude];updateDynamicZoom();document.getElementById('arrival-card').hidden=false;document.getElementById('arrival-address').textContent=d.name;document.getElementById('arrival-address').title=d.name;form.classList.add('navigating');destinationInput.value='';destinationInput.placeholder='Navigation en cours';submitButton.textContent='Arrêter';submitButton.disabled=false;submitButton.setAttribute('aria-label','Arrêter la navigation');render();updateGuidance()}catch(error){console.warn('Calcul de trajet impossible',error);showMessage(error.message==='Aucun itinéraire ne respecte les restrictions de circulation cartographiées.'?error.message:'Impossible de calculer ce trajet. Réessayez.');submitButton.disabled=false;submitButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>'}}
+function stopRoute(){state.route=null;state.steps=[];state.stepIndex=0;state.navigating=false;state.turnReached=false;state.turnBestDistance=Infinity;state.destination=null;state.offRouteCount=0;state.follow=true;document.getElementById('arrival-card').hidden=true;form.classList.remove('navigating','expanded');searchToggle.setAttribute('aria-expanded','false');searchToggle.setAttribute('aria-label','Rechercher une destination');destinationInput.placeholder='Où aller ?';submitButton.disabled=false;submitButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>';submitButton.setAttribute('aria-label','Calculer l’itinéraire');guidance.hidden=true;render()}
 submitButton.addEventListener('click',e=>{if(state.navigating){e.preventDefault();stopRoute()}});
 function checkOffRoute(){if(!state.route||!state.position)return;let best=Infinity;for(const [lon,lat] of state.route.geometry.coordinates){const d=meters(state.position,{longitude:lon,latitude:lat});if(d<best)best=d;if(best<25)break}if(best>85)state.offRouteCount++;else state.offRouteCount=0;if(state.offRouteCount>=3){state.offRouteCount=0;showMessage('Recalcul de l’itinéraire…');startRoute()}}
 let drag=null;
 mapEl.addEventListener('pointerdown',e=>{if(e.target.closest('button,input,.suggestion'))return;drag={x:e.clientX,y:e.clientY,center:mercator(...state.center),moved:false};mapEl.setPointerCapture(e.pointerId)});
-mapEl.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(!drag.moved&&Math.hypot(dx,dy)>4){drag.moved=true;state.follow=false;state.routeOverview=false;updateMapViewToggle()}if(!drag.moved)return;state.center=unproject(drag.center.x-dx,drag.center.y-dy);render()});
+mapEl.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(!drag.moved&&Math.hypot(dx,dy)>4){drag.moved=true;state.follow=false;updateMapViewToggle()}if(!drag.moved)return;state.center=unproject(drag.center.x-dx,drag.center.y-dy);render()});
 const release=()=>{if(drag){const moved=drag.moved;drag=null;if(moved)refreshRadars()}};mapEl.addEventListener('pointerup',release);mapEl.addEventListener('pointercancel',release);
-mapEl.addEventListener('wheel',e=>{e.preventDefault();state.follow=false;state.routeOverview=false;state.zoom=Math.max(3,Math.min(19,state.zoom+(e.deltaY<0?1:-1)));render()},{passive:false});
-mapViewToggle.addEventListener('click',()=>{if(state.routeOverview||!state.follow){returnToVehicle();return}if(state.route){fitRouteToView();return}startGps()});
+mapEl.addEventListener('wheel',e=>{e.preventDefault();state.follow=false;state.zoom=Math.max(3,Math.min(19,state.zoom+(e.deltaY<0?1:-1)));render()},{passive:false});
+mapViewToggle.addEventListener('click',returnToVehicle);
 orientationButton.addEventListener('click',()=>{state.orientation=state.orientation==='north'?'heading':'north';localStorage.setItem('map-orientation',state.orientation);render();loadCar(state.orientation==='heading'?'rear':'north')});
 soundButton.addEventListener('click',()=>{unlockAudio();state.beepOn=!state.beepOn;localStorage.setItem('radar-sound',state.beepOn?'on':'off');soundButton.classList.toggle('muted',!state.beepOn);soundButton.setAttribute('aria-pressed',String(state.beepOn));soundButton.setAttribute('aria-label',state.beepOn?'Bips radars activés':'Bips radars désactivés');soundButton.title=state.beepOn?'Couper les bips radars':'Activer les bips radars'});
 window.addEventListener('resize',render);window.addEventListener('orientationchange',()=>setTimeout(render,150));
