@@ -75,6 +75,7 @@ function updateMapViewToggle(){
  const visible=!state.follow;
  mapViewToggle.hidden=!visible;
  mapViewToggle.classList.toggle('recenter-mode',visible);
+ mapViewToggle.querySelector('.recenter-mark').hidden=false;
  mapViewToggle.setAttribute('aria-label','Recentrer sur la voiture');mapViewToggle.title='Recentrer sur la voiture'
 }
 function returnToVehicle(){
